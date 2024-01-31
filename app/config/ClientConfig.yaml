@@ -1,0 +1,7 @@
+login:
+  isRememberedPassword: true
+  isRememberedUsername: true
+  password: '123456'
+  username: szx
+user:
+  token: '"eyJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3MDY1Mzg1NjYsInVzZXJJZCI6M30.NwlLQFojA5vF7xf92W4Yx8kevGCMoGPka2s6i2uqOrY"'

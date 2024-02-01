@@ -11,7 +11,7 @@ from .Ui_LoginWindow import Ui_Form
 from qfluentwidgets import setThemeColor, FluentTranslator, setTheme, Theme, SplitTitleBar, Dialog
 
 from .SiguUpWindow import SignUpWindow
-
+from ..mainWindow.adminWinow import adminWindow
 class LoginWindow(AcrylicWindow, Ui_Form):
 
     def __init__(self):
@@ -88,8 +88,8 @@ class LoginWindow(AcrylicWindow, Ui_Form):
                 yaml.dump(config, f)
             if response["data"]["id"] == 0:
                 # 管理员账户，进入管理端
-                adminWindow = adminWindow(self)
-                adminWindow.show()
+                adminWin = adminWindow(self)
+                adminWin.show()
                 self.hide()
             else:
                 userWindow = userWindow(self)

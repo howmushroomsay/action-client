@@ -1,20 +1,29 @@
 import sys
+import os
+current_path = os.path.dirname(os.path.abspath(__file__))
+
+# 添加上上级目录到sys.path
+parent_path = os.path.abspath(os.path.join(current_path, '..'))
+grandparent_path = os.path.abspath(os.path.join(parent_path, '..'))
+sys.path.append(grandparent_path)
+sys.path.append(os.path.abspath('.'))
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QWidget
 from PyQt5.QtCore import Qt, QSize
 
 from qfluentwidgets import (NavigationItemPosition, MSFluentWindow, SplashScreen, 
                             setThemeColor, NavigationBarPushButton, toggleTheme, 
-                            setTheme, darkdetect, Theme)
+                            setTheme, darkdetect, Theme, FluentWindow)
 from qfluentwidgets import FluentIcon as FIF
 from qfluentwidgets import InfoBar, InfoBarPosition
 
-from HomeInterface import HomeInterface
-from UserManagerInterface import UserManagerInterface
+from .HomeInterface import HomeInterface
+from .UserManagerInterface import UserManagerInterface
 class adminWindow(MSFluentWindow):
 
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__()
+        self.parent_ = parent
         setThemeColor('#28afe9')
         self.setMicaEffectEnabled(False)
 

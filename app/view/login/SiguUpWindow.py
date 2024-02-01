@@ -82,6 +82,7 @@ class SignUpWindow(FluentWindow, Ui_Form):
             'Content-Type': 'application/json'
             }
         response = requests.post(url, data=payload, headers=headers)
+        response = json.loads(response.text)
         if (response["code"] == 1):
             self.showDialog("注册成功")
         else:

@@ -15,7 +15,8 @@ sys.path.append(grandparent_path)
 from PyQt5.QtCore import Qt, QRectF, QRect
 from PyQt5.QtGui import QPixmap, QPainter, QBrush, QPainterPath
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QSizePolicy, 
-                             QSpacerItem, QAbstractItemView, QTableWidgetItem)
+                             QSpacerItem, QAbstractItemView, QTableWidgetItem,
+                             QHeaderView)
 from qfluentwidgets import (ScrollArea, FluentIcon, BodyLabel, LineEdit, 
                             PushButton, TableWidget, ComboBox, Dialog)
 from common.style_sheet import StyleSheet
@@ -97,22 +98,24 @@ class UserManagerInterface(ScrollArea):
         self.tableWidget = TableWidget(self.view)
         self.tableWidget.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.tableWidget.setObjectName("tableWidget")
-        self.tableWidget.setColumnCount(5)
+        self.tableWidget.setColumnCount(7)
         self.tableWidget.setRowCount(0)
         self.tableWidget.setHorizontalHeaderItem(0, QTableWidgetItem(self.tr("姓名")))
         self.tableWidget.setHorizontalHeaderItem(1, QTableWidgetItem(self.tr("账号")))
-        self.tableWidget.setHorizontalHeaderItem(2, QTableWidgetItem(self.tr("电话")))
-        self.tableWidget.setHorizontalHeaderItem(3, QTableWidgetItem(self.tr("账号状态")))
-        self.tableWidget.setHorizontalHeaderItem(4, QTableWidgetItem(self.tr("最后操作时间")))
+        self.tableWidget.setHorizontalHeaderItem(2, QTableWidgetItem(self.tr("性别")))
+        self.tableWidget.setHorizontalHeaderItem(3, QTableWidgetItem(self.tr("电话")))
+        self.tableWidget.setHorizontalHeaderItem(4, QTableWidgetItem(self.tr("身份证")))
+        self.tableWidget.setHorizontalHeaderItem(5, QTableWidgetItem(self.tr("账号状态")))
+        self.tableWidget.setHorizontalHeaderItem(6, QTableWidgetItem(self.tr("最后操作时间")))
         self.tableWidget.horizontalHeader().setVisible(True)
         self.tableWidget.horizontalHeader().setStretchLastSection(True)
         self.tableWidget.verticalHeader().setVisible(False)
-        self.tableWidget.verticalHeader().setStretchLastSection(False)
+        # self.tableWidget.verticalHeader().setStretchLastSection(False)
     
     def initFun(self):
         self.searchBtn.clicked.connect(self.searchData)
         self.statusBtn.clicked.connect(self.changeStatus)
-        self.perPageComboBox.changeEvent(self.changePageSize)
+        self.perPageComboBox.currentIndexChanged.connect(self.changePageSize)
         self.prevBtn.clicked.connect(self.prevPage)
         self.nextBtn.clicked.connect(self.nextPage)
         self.pageLineEdit.returnPressed.connect(self.changePage)
@@ -128,28 +131,48 @@ class UserManagerInterface(ScrollArea):
     def Page(self, name=""):
         url = "http://{}:{}/admin/usr/page".format(self.host, self.port)
         payload = json.dumps({
-            "name": name,
+            "name": name if name is not None and name != "" else None,
             "page": self.currentPage,
             "pageSize": self.pageSize
         })
-        headers = json.dumps({
+        headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "token": self.token})
+            "token": self.token}
         
-        response = requests.post(url, data=payload, headers=headers)
+        response = requests.get(url, data=payload, headers=headers)
         response = json.loads(response.text)
-
+        # self.tableWidget.clear()
+        self.tableWidget.setRowCount(0)
         if (response["code"] == 1):
             self.totalNum = response["data"]["total"]
             self.totalPage = (self.totalNum + self.pageSize - 1) // self.pageSize
-            for i in range(len(response["data"]["list"])):
+            for i in range(len(response["data"]["records"])):
                 self.tableWidget.insertRow(self.tableWidget.rowCount())
-                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 0, QTableWidgetItem(response["data"]["list"][i]["name"]))
-                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 1, QTableWidgetItem(response["data"]["list"][i]["username"]))
-                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 2, QTableWidgetItem(response["data"]["list"][i]["phone"]))
-                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 3, QTableWidgetItem("已启用" if response["data"]["list"][i]["phone"]else "已禁用"))
-                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 2, QTableWidgetItem(response["data"]["list"][i]["updateTime"]))
+                item = QTableWidgetItem(response["data"]["records"][i]["name"])
+                item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
+                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 0, item)
+                item = QTableWidgetItem(response["data"]["records"][i]["username"])
+                item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
+                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 1, item)
+                item = QTableWidgetItem(response["data"]["records"][i]["sex"])
+                item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
+                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 2, item)
+                item = QTableWidgetItem(response["data"]["records"][i]["phone"])
+                item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
+                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 3, item)
+                item = QTableWidgetItem(response["data"]["records"][i]["idNumber"])
+                item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
+                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 4, item)
+                item = QTableWidgetItem("已启用" if response["data"]["records"][i]["phone"]else "已禁用")
+                item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
+                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 5, item)
+                item = QTableWidgetItem(response["data"]["records"][i]["updateTime"])
+                item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
+                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 6, item)
+            for row in range(self.tableWidget.rowCount()):
+                self.tableWidget.setRowHeight(row, 50)
+            # self.tableWidget.resizeRowsToContents()
         else:
             errorMsg = response["msg"]
             self.showDialog(errorMsg)
@@ -164,7 +187,9 @@ class UserManagerInterface(ScrollArea):
     def changePageSize(self):
         oldPageSize = self.pageSize
         self.pageSize = int(self.perPageComboBox.currentText())
-        self.currentPage = ((self.currentPage - 1) * oldPageSize // self.pageSize)
+        self.currentPage = ((self.currentPage - 1) * oldPageSize // self.pageSize) + 1
+        self.pageLineEdit.setText(str(self.currentPage))        
+        self.pageLabel.setText(str(self.currentPage))
         self.Page()
         pass
 
@@ -173,6 +198,8 @@ class UserManagerInterface(ScrollArea):
             return
         else:
             self.currentPage -= 1
+            self.pageLineEdit.setText(str(self.currentPage))
+            self.pageLabel.setText(str(self.currentPage))
             self.Page()
 
     def nextPage(self):
@@ -180,8 +207,15 @@ class UserManagerInterface(ScrollArea):
             return
         else:
             self.currentPage += 1
+            self.pageLineEdit.setText(str(self.currentPage))
+            self.pageLabel.setText(str(self.currentPage))
             self.Page()
-
+    def changePage(self):
+        if (self.currentPage == self.totalPage):
+            return
+        else:
+            self.currentPage = int(self.pageLineEdit.text())
+            self.Page()
     def showDialog(self, msg):
         title = '错误'
         w = Dialog(title, msg, self)

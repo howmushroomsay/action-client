@@ -4,7 +4,7 @@ from enum import Enum
 
 from PyQt5.QtCore import QLocale
 from qfluentwidgets import (qconfig, QConfig, ConfigItem, OptionsConfigItem, BoolValidator,
-                            OptionsValidator, RangeConfigItem, RangeValidator,
+                            OptionsValidator, RangeConfigItem, RangeValidator,Theme,
                             FolderListValidator, EnumSerializer, FolderValidator, ConfigSerializer, __version__)
 
 
@@ -41,11 +41,11 @@ class Config(QConfig):
         "Folders", "Download", "app/download", FolderValidator())
 
     # main window
-    micaEnabled = ConfigItem("MainWindow", "MicaEnabled", isWin11(), BoolValidator())
+    micaEnabled = ConfigItem("adminWindow", "MicaEnabled", isWin11(), BoolValidator())
     dpiScale = OptionsConfigItem(
-        "MainWindow", "DpiScale", "Auto", OptionsValidator([1, 1.25, 1.5, 1.75, 2, "Auto"]), restart=True)
+        "adminWindow", "DpiScale", "Auto", OptionsValidator([1, 1.25, 1.5, 1.75, 2, "Auto"]), restart=True)
     language = OptionsConfigItem(
-        "MainWindow", "Language", Language.AUTO, OptionsValidator(Language), LanguageSerializer(), restart=True)
+        "adminWindow", "Language", Language.AUTO, OptionsValidator(Language), LanguageSerializer(), restart=True)
 
     # Material
     blurRadius  = RangeConfigItem("Material", "AcrylicBlurRadius", 15, RangeValidator(0, 40))
@@ -54,8 +54,8 @@ class Config(QConfig):
     checkUpdateAtStartUp = ConfigItem("Update", "CheckUpdateAtStartUp", True, BoolValidator())
 
 
-YEAR = 2023
-AUTHOR = "zhiyiYo"
+YEAR = 2024
+AUTHOR = "Star-s"
 VERSION = __version__
 HELP_URL = "https://pyqt-fluent-widgets.readthedocs.io/zh_CN/latest"
 REPO_URL = "https://github.com/zhiyiYo/PyQt-Fluent-Widgets"
@@ -66,4 +66,5 @@ SUPPORT_URL = "https://afdian.net/a/zhiyiYo"
 
 
 cfg = Config()
-# qconfig.load('app/config/config.json', cfg)
+cfg.themeMode.value = Theme.AUTO
+qconfig.load('app/config/config.json', cfg)

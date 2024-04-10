@@ -30,6 +30,7 @@ class UserManagerInterface(ScrollArea):
         self.initWidget()
         self.initFun()
         self.initConfig()
+        StyleSheet.VIEW_INTERFACE.apply(self)
         self.currentPage = 1
         self.totalPage = 1
         self.pageSize = 10
@@ -45,16 +46,16 @@ class UserManagerInterface(ScrollArea):
         self.vBoxLayout = QVBoxLayout(self.view)
         hBoxLayout1 = QHBoxLayout()
         label = BodyLabel()
-        label.setText(self.tr("用户姓名:"))
+        label.setText(self.tr("Username:"))
         hBoxLayout1.addWidget(label)
         self.usernameLineEdit = LineEdit()
         self.usernameLineEdit.setObjectName("usernameLineEdit")
         hBoxLayout1.addWidget(self.usernameLineEdit)
-        self.searchBtn = PushButton(self.tr("搜索"))
+        self.searchBtn = PushButton(self.tr("Search"))
         self.searchBtn.setObjectName("searchBtn")
         hBoxLayout1.addWidget(self.searchBtn)
         hBoxLayout1.addItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
-        self.statusBtn = PushButton(self.tr("启用/禁用"))
+        self.statusBtn = PushButton(self.tr("Enable/Disable"))
         self.statusBtn.setObjectName('statusBtn')
         hBoxLayout1.addWidget(self.statusBtn)
         self.vBoxLayout.addLayout(hBoxLayout1)
@@ -64,7 +65,7 @@ class UserManagerInterface(ScrollArea):
         hBoxLayout2.setSpacing(20)
         hBoxLayout2.addItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
         self.numLabel = BodyLabel()
-        self.numLabel.setText(self.tr("共1条"))
+        self.numLabel.setText(self.tr("1 in total"))
         hBoxLayout2.addWidget(self.numLabel)
         self.perPageComboBox = ComboBox()
         self.perPageComboBox.setObjectName("perPageComboBox")
@@ -73,15 +74,15 @@ class UserManagerInterface(ScrollArea):
         self.perPageComboBox.addItem(self.tr("50"))
         self.perPageComboBox.setCurrentIndex(0)
         hBoxLayout2.addWidget(self.perPageComboBox)
-        self.prevBtn = PushButton(self.tr("上一页"))
+        self.prevBtn = PushButton(self.tr("Previous Page"))
         hBoxLayout2.addWidget(self.prevBtn)
         self.pageLabel = BodyLabel()
         self.pageLabel.setText("1")
         hBoxLayout2.addWidget(self.pageLabel)
-        self.nextBtn = PushButton(self.tr("下一页"))
+        self.nextBtn = PushButton(self.tr("Next Page"))
         hBoxLayout2.addWidget(self.nextBtn)
         label = BodyLabel()
-        label.setText(self.tr("前往"))
+        label.setText(self.tr("Go to"))
         hBoxLayout2.addWidget(label)
         self.pageLineEdit = LineEdit()
         self.pageLineEdit.setFixedWidth(45)
@@ -89,7 +90,7 @@ class UserManagerInterface(ScrollArea):
         self.pageLineEdit.setText("1")
         hBoxLayout2.addWidget(self.pageLineEdit)
         label = BodyLabel()
-        label.setText(self.tr("页"))
+        label.setText(self.tr("Page"))
         hBoxLayout2.addWidget(label)
         hBoxLayout2.addItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
         self.vBoxLayout.addLayout(hBoxLayout2)
@@ -100,13 +101,13 @@ class UserManagerInterface(ScrollArea):
         self.tableWidget.setObjectName("tableWidget")
         self.tableWidget.setColumnCount(7)
         self.tableWidget.setRowCount(0)
-        self.tableWidget.setHorizontalHeaderItem(0, QTableWidgetItem(self.tr("姓名")))
-        self.tableWidget.setHorizontalHeaderItem(1, QTableWidgetItem(self.tr("账号")))
-        self.tableWidget.setHorizontalHeaderItem(2, QTableWidgetItem(self.tr("性别")))
-        self.tableWidget.setHorizontalHeaderItem(3, QTableWidgetItem(self.tr("电话")))
-        self.tableWidget.setHorizontalHeaderItem(4, QTableWidgetItem(self.tr("身份证")))
-        self.tableWidget.setHorizontalHeaderItem(5, QTableWidgetItem(self.tr("账号状态")))
-        self.tableWidget.setHorizontalHeaderItem(6, QTableWidgetItem(self.tr("最后操作时间")))
+        self.tableWidget.setHorizontalHeaderItem(0, QTableWidgetItem(self.tr("Username")))
+        self.tableWidget.setHorizontalHeaderItem(1, QTableWidgetItem(self.tr("Account")))
+        self.tableWidget.setHorizontalHeaderItem(2, QTableWidgetItem(self.tr("Sex")))
+        self.tableWidget.setHorizontalHeaderItem(3, QTableWidgetItem(self.tr("Phone")))
+        self.tableWidget.setHorizontalHeaderItem(4, QTableWidgetItem(self.tr("idNumber")))
+        self.tableWidget.setHorizontalHeaderItem(5, QTableWidgetItem(self.tr("Account status")))
+        self.tableWidget.setHorizontalHeaderItem(6, QTableWidgetItem(self.tr("Last operation time")))
         self.tableWidget.horizontalHeader().setVisible(True)
         self.tableWidget.horizontalHeader().setStretchLastSection(True)
         self.tableWidget.verticalHeader().setVisible(False)
@@ -118,7 +119,7 @@ class UserManagerInterface(ScrollArea):
         self.perPageComboBox.currentIndexChanged.connect(self.changePageSize)
         self.prevBtn.clicked.connect(self.prevPage)
         self.nextBtn.clicked.connect(self.nextPage)
-        self.pageLineEdit.returnPressed.connect(self.changePage)
+        self.pageLineEdit.textChanged.connect(self.changePage)
     
     def initConfig(self):
         config = yaml.load(open('./app/config/ServerConfig.yaml', 'r'), 
@@ -129,6 +130,7 @@ class UserManagerInterface(ScrollArea):
                            Loader=yaml.FullLoader)
         self.token = config["user"]["token"]
     def Page(self, name=""):
+        name = self.usernameLineEdit.text()
         url = "http://{}:{}/admin/usr/page".format(self.host, self.port)
         payload = json.dumps({
             "name": name if name is not None and name != "" else None,
@@ -139,13 +141,17 @@ class UserManagerInterface(ScrollArea):
             "Content-Type": "application/json",
             "Accept": "application/json",
             "token": self.token}
-        
-        response = requests.get(url, data=payload, headers=headers)
+        try:
+            response = requests.get(url, data=payload, headers=headers)
+        except:
+            self.showDialog("获取失败")
+            return
         response = json.loads(response.text)
         # self.tableWidget.clear()
         self.tableWidget.setRowCount(0)
         if (response["code"] == 1):
             self.totalNum = response["data"]["total"]
+            self.numLabel.setText(self.tr("{} in total".format(self.totalNum)))
             self.totalPage = (self.totalNum + self.pageSize - 1) // self.pageSize
             for i in range(len(response["data"]["records"])):
                 self.tableWidget.insertRow(self.tableWidget.rowCount())
@@ -177,8 +183,7 @@ class UserManagerInterface(ScrollArea):
             errorMsg = response["msg"]
             self.showDialog(errorMsg)
     def searchData(self):
-        name = self.usernameLineEdit.text()
-        self.Page(name)
+        self.Page()
 
     def changeStatus(self):
 
@@ -211,11 +216,15 @@ class UserManagerInterface(ScrollArea):
             self.pageLabel.setText(str(self.currentPage))
             self.Page()
     def changePage(self):
-        if (self.currentPage == self.totalPage):
+        try:
+            page = int(self.pageLineEdit.text())
+        except:
             return
-        else:
-            self.currentPage = int(self.pageLineEdit.text())
-            self.Page()
+        if page < 1 or page > self.totalPage:
+            return
+        self.currentPage = page
+        self.pageLabel.setText(str(self.currentPage))
+        self.Page()
     def showDialog(self, msg):
         title = '错误'
         w = Dialog(title, msg, self)

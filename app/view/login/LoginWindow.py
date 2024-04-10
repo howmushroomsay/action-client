@@ -11,7 +11,7 @@ from .Ui_LoginWindow import Ui_Form
 from qfluentwidgets import setThemeColor, FluentTranslator, setTheme, Theme, SplitTitleBar, Dialog
 
 from .SiguUpWindow import SignUpWindow
-from ..mainWindow.adminWinow import adminWindow
+from ..mainWindow.adminWindow import adminWindow
 class LoginWindow(AcrylicWindow, Ui_Form):
 
     def __init__(self):

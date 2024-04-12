@@ -24,10 +24,10 @@ from common.signal_bus import signalBus
 from common.translator import Translator
 from app.common import resource_rc
 
-from HomeInterface import HomeInterface
-from UserManagerInterface import UserManagerInterface
-from SettingInterface import SettingInterface
-from CourseManagerInterface import CourseManagerInterface
+from .HomeInterface import HomeInterface
+from .UserManagerInterface import UserManagerInterface
+from .SettingInterface import SettingInterface
+from .CourseManagerInterface import CourseManagerInterface
 class adminWindow(FluentWindow):
 
     def __init__(self, parent=None):

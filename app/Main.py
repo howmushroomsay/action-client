@@ -23,7 +23,8 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
 
     # Internationalization
-    translator = FluentTranslator(QLocale())
+    translator = QTranslator()
+    translator.load(f'app/view/login/test_cn.qm')
     app.installTranslator(translator)
 
     w = LoginWindow()

@@ -137,7 +137,7 @@ class ReactionWindow(ScrollArea):
         self.courseDesTextEdit.setText(data["courseDes"])
 
         # 获取检查点信息
-
+        url = "http://{}:{}/admin/course/reaction/point".format(self.host, self.port)"
 
         # 获取课程图标
         
@@ -404,6 +404,6 @@ if __name__ == '__main__':
     translator = FluentTranslator(QLocale())
     app.installTranslator(translator)
 
-    w = ReactionWindow()
+    w = ReactionWindow(1)
     w.show()
     app.exec_()

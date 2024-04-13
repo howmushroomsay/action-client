@@ -72,7 +72,7 @@ class ReactionWindow(ScrollArea):
         self.__initLayout()
         self.__connectSignalToSlot()
         
-        self.loadData(self)
+        self.loadData()
 
     def __initWidget(self):
         self.videoWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)

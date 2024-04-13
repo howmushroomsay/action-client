@@ -24,7 +24,7 @@ class LoginWindow(AcrylicWindow, Ui_Form):
         self.titleBar.raise_()
 
         # self.label.setScaledContents(False)
-        self.setWindowTitle('Action-Login')
+        self.setWindowTitle(self.tr('Action-Login'))
         self.setWindowIcon(QIcon(":/images/logo.png"))
         self.resize(1000, 650)
 
@@ -67,10 +67,10 @@ class LoginWindow(AcrylicWindow, Ui_Form):
         username = self.usernameLineEdit.text()
         password = self.passwordLineEdit.text()
         if username == "":
-            self.usernameLineEdit.setPlaceholderText("请输入用户名")
+            self.usernameLineEdit.setPlaceholderText(self.tr("请输入用户名"))
             return
         if password == "":
-            self.passwordLineEdit.setPlaceholderText("请输入密码")
+            self.passwordLineEdit.setPlaceholderText(self.tr("请输入密码"))
             return
         url = "http://{}:{}/admin/usr/login".format(self.host, self.port)
         payload = json.dumps({"username": username, "password": password})
@@ -86,22 +86,23 @@ class LoginWindow(AcrylicWindow, Ui_Form):
                 # yaml.(mapping=2, sequence=4, offset=2)  
             with open('./app/config/ClientConfig.yaml','w') as f:                
                 yaml.dump(config, f)
+            self.hide()
             if response["data"]["id"] == 0:
                 # 管理员账户，进入管理端
                 adminWin = adminWindow(self)
                 adminWin.show()
-                self.hide()
+                
             else:
                 userWindow = userWindow(self)
                 userWindow.show()
-                self.hide()
+                
             
         else:
             errorMsg = response["msg"]
             self.showDialog(errorMsg)
     
     def showDialog(self, msg):
-        title = '错误'
+        title = self.tr('错误')
         w = Dialog(title, msg, self)
         w.setTitleBarVisible(False)
         w.exec()

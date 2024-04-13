@@ -80,16 +80,11 @@ class ReactionWindow(ScrollArea):
         self.__initWidget()
         self.__initLayout()
         self.__connectSignalToSlot()
-<<<<<<< HEAD
-        
-        self.loadData()
-=======
         self.initConfig()
         if self.courseId is not None:
             self.loadData()
 
     
->>>>>>> c9c8ab47749b6db6f64a763c2b23286c289ec78d
 
     def __initWidget(self):
         self.videoWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -126,26 +121,38 @@ class ReactionWindow(ScrollArea):
 
         #TODO 整合所有的请求，封装到一个类中
         # 获取课程信息
-        url = "http://{}:{}/admin/course/reaction".format(self.host, self.port)
-
+        url = "http://{}:{}/admin/course/reaction/{}".format(self.host, self.port, self.courseId)
         try:
-            response = requests.get(url, params={"id":self.courseId})
-            response = json.loads(response)
+            response = requests.get(url)
+            response = json.loads(response.text)
             if response["code"] == 0:
                 self.showDialog(response["msg"])
                 return
             data = response["data"]
         except:
             self.showDialog(self.tr("Server Error"))
-            return 
+            return
+        self.courseId = data["id"]
         self.courseNameLineEdit.setText(data["courseName"])
         self.courseDesTextEdit.setText(data["courseDes"])
-
-        # 获取检查点信息
-
-
-        # 获取课程图标
         
+        # 获取课程图标
+        url =  "http://{}:{}/admin/common/download/{}".format(self.host, self.port, data["icon"])
+        # try:
+        response = requests.get(url, headers={"type": "image"})
+        # response_ = json.loads(response.text)
+        # if response_["code"] == 0:
+        #     self.showDialog(response_["msg"])
+        #     return
+        pixmap = QPixmap()
+        pixmap.loadFromData(response.content)
+        pixmap = pixmap.scaled(self.courseIconLabel.size(), 
+                                               Qt.KeepAspectRatio, 
+                                               Qt.SmoothTransformation)
+        self.courseIconLabel.setPixmap(pixmap)
+        # except:
+        #     self.showDialog(self.tr("Server Error"))
+        #     return
         # 获取课程视频
     def __initLayout(self):
         self.pointTable.setFixedWidth(600)
@@ -409,6 +416,6 @@ if __name__ == '__main__':
     translator = FluentTranslator(QLocale())
     app.installTranslator(translator)
 
-    w = ReactionWindow()
+    w = ReactionWindow(courseId=None)
     w.show()
     app.exec_()

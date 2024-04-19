@@ -13,12 +13,13 @@ grandparent_path = os.path.abspath(os.path.join(parent_path, '..'))
 sys.path.append(grandparent_path)
 
 from PyQt5.QtCore import Qt, QRectF, QRect
-from PyQt5.QtGui import QPixmap, QPainter, QBrush, QPainterPath
+from PyQt5.QtGui import QPixmap, QPainter, QBrush, QPainterPath, QIntValidator
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QSizePolicy, 
                              QSpacerItem, QAbstractItemView, QTableWidgetItem,
-                             QHeaderView)
+                             QHeaderView, )
 from qfluentwidgets import (ScrollArea, FluentIcon, BodyLabel, LineEdit, 
-                            PushButton, TableWidget, ComboBox, Dialog)
+                            SwitchButton, TableWidget, ComboBox, Dialog, PrimaryToolButton,)
+from qfluentwidgets import FluentIcon as FIF
 from common.style_sheet import StyleSheet
 
 class UserManagerInterface(ScrollArea):
@@ -28,14 +29,20 @@ class UserManagerInterface(ScrollArea):
         # 获取数据
         # self.setFixedHeight(350)
         self.initWidget()
+        
         self.initFun()
         self.initConfig()
-        StyleSheet.VIEW_INTERFACE.apply(self)
+        
         self.currentPage = 1
         self.totalPage = 1
         self.pageSize = 10
         self.totalNum = 1
         self.Page()
+        self.Page()
+        # StyleSheet.VIEW_INTERFACE.apply(self)
+        
+        
+
     def initWidget(self):
         self.setObjectName('userManagerInterface')
         self.view = QWidget(self)
@@ -43,85 +50,91 @@ class UserManagerInterface(ScrollArea):
         self.setWidget(self.view)
         self.setWidgetResizable(True)
         self.view.setGeometry(QRect(0, 0, self.width(), 200))
-        self.vBoxLayout = QVBoxLayout(self.view)
-        hBoxLayout1 = QHBoxLayout()
+        self.mainLayout = QVBoxLayout(self.view)
+        topLayout = QHBoxLayout()
         label = BodyLabel()
         label.setText(self.tr("Username:"))
-        hBoxLayout1.addWidget(label)
+        topLayout.addWidget(label)
         self.usernameLineEdit = LineEdit()
         self.usernameLineEdit.setObjectName("usernameLineEdit")
-        hBoxLayout1.addWidget(self.usernameLineEdit)
-        self.searchBtn = PushButton(self.tr("Search"))
+        topLayout.addWidget(self.usernameLineEdit)
+        self.searchBtn = PrimaryToolButton(FIF.SEARCH)
         self.searchBtn.setObjectName("searchBtn")
-        hBoxLayout1.addWidget(self.searchBtn)
-        hBoxLayout1.addItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
-        self.statusBtn = PushButton(self.tr("Enable/Disable"))
-        self.statusBtn.setObjectName('statusBtn')
-        hBoxLayout1.addWidget(self.statusBtn)
-        self.vBoxLayout.addLayout(hBoxLayout1)
+        topLayout.addWidget(self.searchBtn)
+        topLayout.addItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
+        self.flushBtn = PrimaryToolButton(FIF.SYNC)
+        self.flushBtn.setObjectName("flushBtn")
+        topLayout.addWidget(self.flushBtn)
+        
+        # self.statusBtn = PushButton(self.tr("Enable/Disable"))
+        # self.statusBtn.setObjectName('statusBtn')
+        # topLayout.addWidget(self.statusBtn)
+        self.mainLayout.addLayout(topLayout)
         self.initTable()
-        self.vBoxLayout.addWidget(self.tableWidget)
-        hBoxLayout2 = QHBoxLayout()
-        hBoxLayout2.setSpacing(20)
-        hBoxLayout2.addItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
+        self.mainLayout.addWidget(self.tableWidget)
+        bottomLayout = QHBoxLayout()
+        bottomLayout.setSpacing(20)
+        bottomLayout.addItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
         self.numLabel = BodyLabel()
         self.numLabel.setText(self.tr("1 in total"))
-        hBoxLayout2.addWidget(self.numLabel)
+        bottomLayout.addWidget(self.numLabel)
         self.perPageComboBox = ComboBox()
         self.perPageComboBox.setObjectName("perPageComboBox")
         self.perPageComboBox.addItem(self.tr("10"))
         self.perPageComboBox.addItem(self.tr("20"))
         self.perPageComboBox.addItem(self.tr("50"))
         self.perPageComboBox.setCurrentIndex(0)
-        hBoxLayout2.addWidget(self.perPageComboBox)
-        self.prevBtn = PushButton(self.tr("Previous Page"))
-        hBoxLayout2.addWidget(self.prevBtn)
+        bottomLayout.addWidget(self.perPageComboBox)
+        self.prevBtn = PrimaryToolButton(FIF.LEFT_ARROW)
+        bottomLayout.addWidget(self.prevBtn)
         self.pageLabel = BodyLabel()
         self.pageLabel.setText("1")
-        hBoxLayout2.addWidget(self.pageLabel)
-        self.nextBtn = PushButton(self.tr("Next Page"))
-        hBoxLayout2.addWidget(self.nextBtn)
+        bottomLayout.addWidget(self.pageLabel)
+        self.nextBtn = PrimaryToolButton(FIF.RIGHT_ARROW)
+        bottomLayout.addWidget(self.nextBtn)
         label = BodyLabel()
         label.setText(self.tr("Go to"))
-        hBoxLayout2.addWidget(label)
+        bottomLayout.addWidget(label)
         self.pageLineEdit = LineEdit()
         self.pageLineEdit.setFixedWidth(45)
         self.pageLineEdit.setObjectName("pageLineEdit")
         self.pageLineEdit.setText("1")
-        hBoxLayout2.addWidget(self.pageLineEdit)
+        self.pageLineEdit.setValidator( QIntValidator())
+        bottomLayout.addWidget(self.pageLineEdit)
         label = BodyLabel()
         label.setText(self.tr("Page"))
-        hBoxLayout2.addWidget(label)
-        hBoxLayout2.addItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
-        self.vBoxLayout.addLayout(hBoxLayout2)
+        bottomLayout.addWidget(label)
+        bottomLayout.addItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
+        self.mainLayout.addLayout(bottomLayout)
     
     def initTable(self):
         self.tableWidget = TableWidget(self.view)
         self.tableWidget.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.tableWidget.setObjectName("tableWidget")
         self.tableWidget.setColumnCount(7)
-        self.tableWidget.setRowCount(0)
         self.tableWidget.setHorizontalHeaderItem(0, QTableWidgetItem(self.tr("Username")))
         self.tableWidget.setHorizontalHeaderItem(1, QTableWidgetItem(self.tr("Account")))
         self.tableWidget.setHorizontalHeaderItem(2, QTableWidgetItem(self.tr("Sex")))
         self.tableWidget.setHorizontalHeaderItem(3, QTableWidgetItem(self.tr("Phone")))
         self.tableWidget.setHorizontalHeaderItem(4, QTableWidgetItem(self.tr("idNumber")))
-        self.tableWidget.setHorizontalHeaderItem(5, QTableWidgetItem(self.tr("Account status")))
+        self.tableWidget.setHorizontalHeaderItem(5, QTableWidgetItem(self.tr("Status")))
         self.tableWidget.setHorizontalHeaderItem(6, QTableWidgetItem(self.tr("Last operation time")))
         self.tableWidget.horizontalHeader().setVisible(True)
         self.tableWidget.horizontalHeader().setStretchLastSection(True)
         self.tableWidget.verticalHeader().setVisible(False)
-        # self.tableWidget.verticalHeader().setStretchLastSection(False)
+
     
     def initFun(self):
+        self.flushBtn.clicked.connect(self.Page)
         self.searchBtn.clicked.connect(self.searchData)
-        self.statusBtn.clicked.connect(self.changeStatus)
+        # self.statusBtn.clicked.connect(self.changeStatus)
         self.perPageComboBox.currentIndexChanged.connect(self.changePageSize)
         self.prevBtn.clicked.connect(self.prevPage)
         self.nextBtn.clicked.connect(self.nextPage)
-        self.pageLineEdit.textChanged.connect(self.changePage)
+        self.pageLineEdit.returnPressed.connect(self.changePage)
     
     def initConfig(self):
+        # TODO 配置改造
         config = yaml.load(open('./app/config/ServerConfig.yaml', 'r'), 
                            Loader=yaml.FullLoader)
         self.host = config["server"]["host"]
@@ -129,6 +142,7 @@ class UserManagerInterface(ScrollArea):
         config = yaml.load(open('./app/config/ClientConfig.yaml', 'r'), 
                            Loader=yaml.FullLoader)
         self.token = config["user"]["token"]
+    
     def Page(self, name=""):
         name = self.usernameLineEdit.text()
         url = "http://{}:{}/admin/usr/page".format(self.host, self.port)
@@ -144,7 +158,7 @@ class UserManagerInterface(ScrollArea):
         try:
             response = requests.get(url, data=payload, headers=headers)
         except:
-            self.showDialog("获取失败")
+            self.showDialog(self.tr("Server Error"))
             return
         response = json.loads(response.text)
         # self.tableWidget.clear()
@@ -153,41 +167,66 @@ class UserManagerInterface(ScrollArea):
             self.totalNum = response["data"]["total"]
             self.numLabel.setText(self.tr("{} in total".format(self.totalNum)))
             self.totalPage = (self.totalNum + self.pageSize - 1) // self.pageSize
-            for i in range(len(response["data"]["records"])):
-                self.tableWidget.insertRow(self.tableWidget.rowCount())
-                item = QTableWidgetItem(response["data"]["records"][i]["name"])
+            records = response["data"]["records"]
+            self.records = records
+            self.tableWidget.setRowCount(len(records))
+            for i in range(len(records)):
+                # self.tableWidget.insertRow(self.tableWidget.rowCount())
+                button = SwitchButton()
+                button.setChecked(records[i]["status"] == 1)
+                button.setText("Enable" if records[i]["status"] == 1 else "Disable")
+                button.checkedChanged.connect(self.changeStatus)
+                item = QTableWidgetItem(records[i]["name"])
                 item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
-                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 0, item)
-                item = QTableWidgetItem(response["data"]["records"][i]["username"])
+                self.tableWidget.setItem(i, 0, item)
+                item = QTableWidgetItem(records[i]["username"])
                 item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
-                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 1, item)
-                item = QTableWidgetItem(response["data"]["records"][i]["sex"])
+                self.tableWidget.setItem(i, 1, item)
+                item = QTableWidgetItem(records[i]["sex"])
                 item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
-                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 2, item)
-                item = QTableWidgetItem(response["data"]["records"][i]["phone"])
+                self.tableWidget.setItem(i, 2, item)
+                item = QTableWidgetItem(records[i]["phone"])
                 item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
-                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 3, item)
-                item = QTableWidgetItem(response["data"]["records"][i]["idNumber"])
+                self.tableWidget.setItem(i, 3, item)
+                item = QTableWidgetItem(records[i]["idNumber"])
                 item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
-                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 4, item)
-                item = QTableWidgetItem("已启用" if response["data"]["records"][i]["phone"]else "已禁用")
+                self.tableWidget.setItem(i, 4, item)
+                
+                self.tableWidget.setCellWidget(i, 5, button)
+                item = QTableWidgetItem(records[i]["updateTime"])
                 item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
-                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 5, item)
-                item = QTableWidgetItem(response["data"]["records"][i]["updateTime"])
-                item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
-                self.tableWidget.setItem(self.tableWidget.rowCount() - 1, 6, item)
+                self.tableWidget.setItem(i, 6, item)
             for row in range(self.tableWidget.rowCount()):
                 self.tableWidget.setRowHeight(row, 50)
             # self.tableWidget.resizeRowsToContents()
         else:
-            errorMsg = response["msg"]
-            self.showDialog(errorMsg)
+            self.showDialog(response["msg"])
     def searchData(self):
         self.Page()
 
     def changeStatus(self):
+        button = self.sender()
+        if button:
+            index = self.tableWidget.indexAt(button.pos())
+            button.setText("Enable" if button.isChecked() else "Disable")
+            if index.isValid():
+                row = index.row()
+                userId = self.records[row]["id"]
+                status = 1 if button.isChecked() else 0
+                url = "http://{}:{}/admin/usr/status/{}?id={}".format(self.host, 
+                                                                      self.port, 
+                                                                      status, 
+                                                                      userId)
+                header = {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "token": self.token}
+                # try:
+                requests.post(url, headers=header)
+                # except:
+                #     self.showDialog(self.tr("Server Error"))
+                #     return
 
-        pass
 
     def changePageSize(self):
         oldPageSize = self.pageSize
@@ -216,17 +255,15 @@ class UserManagerInterface(ScrollArea):
             self.pageLabel.setText(str(self.currentPage))
             self.Page()
     def changePage(self):
-        try:
-            page = int(self.pageLineEdit.text())
-        except:
-            return
+        page = int(self.pageLineEdit.text())
+
         if page < 1 or page > self.totalPage:
             return
         self.currentPage = page
         self.pageLabel.setText(str(self.currentPage))
         self.Page()
     def showDialog(self, msg):
-        title = '错误'
+        title = self.tr('ERROR')
         w = Dialog(title, msg, self)
         w.setTitleBarVisible(False)
         w.exec()

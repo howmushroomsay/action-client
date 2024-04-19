@@ -24,10 +24,10 @@ from common.signal_bus import signalBus
 from common.translator import Translator
 from app.common import resource_rc
 
-from .HomeInterface import HomeInterface
-from .UserManagerInterface import UserManagerInterface
-from .SettingInterface import SettingInterface
-from .CourseManagerInterface import CourseManagerInterface
+from HomeInterface import HomeInterface
+from UserManagerInterface import UserManagerInterface
+from SettingInterface import SettingInterface
+from CourseManagerInterface import CourseManagerInterface
 class adminWindow(FluentWindow):
 
     def __init__(self, parent=None):
@@ -74,11 +74,6 @@ class adminWindow(FluentWindow):
         self.addSubInterface(self.homeInterface, FIF.HOME, self.tr("Home"))
         self.addSubInterface(self.userManagerInterface, FIF.PEOPLE, self.tr("User Management"))
         self.addSubInterface(self.courseManagerInterface, FIF.BOOK_SHELF,self.tr("Course Management"))
-        self.navigationInterface.addWidget(
-            'themeButton',
-            NavigationBarPushButton(FIF.BRUSH, 'Theme', isSelectable=False),
-            self.toggleTheme,
-            NavigationItemPosition.BOTTOM)
         self.addSubInterface(
             self.settingInterface, FIF.SETTING, self.tr('Settings'))
 

@@ -1,15 +1,15 @@
 import sys
 import requests
 import json
-# import cv2
+
 
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, 
                              QVBoxLayout, QHBoxLayout, QTableWidgetItem, 
-                             QFileDialog,QSizePolicy)
+                             QFileDialog, QSizePolicy, QStyledItemDelegate)
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtMultimediaWidgets import QVideoWidget
-from PyQt5.QtCore import Qt, QUrl, QTimer, QLocale, QTime
+from PyQt5.QtCore import Qt, QUrl, QTimer, QLocale, QTime, QBuffer, QIODevice
 
 from qfluentwidgets import (ScrollArea, FlowLayout,IconWidget,PillPushButton,
                             SegmentedWidget, SmoothScrollArea,FluentTranslator,
@@ -25,6 +25,7 @@ import yaml
 class ReactionWindow(ScrollArea):
     def __init__(self, parent=None, courseId=None):
         super().__init__()
+        self.parent_ = parent
         self.setGeometry(100, 100, 1000, 600)
         self.courseId = courseId
         self.videoWidget = QVideoWidget()
@@ -67,13 +68,7 @@ class ReactionWindow(ScrollArea):
         self.info = []
 
         # TODO 从服务端拉取，更新动作种类
-        self.actionDict = {
-            "action1": 0,
-            "action2": 1,
-            "action3": 2,
-            "action4": 3,
-            "action5": 4,}
-        self.icon = None
+        self.actionList = ["action1","action2","action3","action4","action5",]
         self.videoPath = None 
         self.iconPath = None
 
@@ -103,8 +98,7 @@ class ReactionWindow(ScrollArea):
                                                    self.tr("Description"),
                                                    self.tr("Ops")])
         
-        items = ["action1", "action2", "action3", "action4", "action5"]
-        self.actionCombox.addItems(items)
+        self.actionCombox.addItems(self.actionList)
         self.courseIconLabel.setFixedSize(160,160)
         self.actionCombox.setCurrentIndex(0)
         self.courseIconBtn.setMaximumWidth(200)
@@ -121,27 +115,54 @@ class ReactionWindow(ScrollArea):
 
         #TODO 整合所有的请求，封装到一个类中
         # 获取课程信息
-        url = "http://{}:{}/admin/course/reaction".format(self.host, self.port)
-
+        url = "http://{}:{}/admin/course/reaction/{}".format(self.host, self.port, self.courseId)
         try:
-            response = requests.get(url, params={"id":self.courseId})
-            response = json.loads(response)
+            response = requests.get(url)
+            response = json.loads(response.text)
             if response["code"] == 0:
                 self.showDialog(response["msg"])
                 return
             data = response["data"]
-        except:
+        except Exception as e:
+            print(e)
             self.showDialog(self.tr("Server Error"))
-            return 
+            return
+
         self.courseNameLineEdit.setText(data["courseName"])
         self.courseDesTextEdit.setText(data["courseDes"])
-
-        # 获取检查点信息
-        url = "http://{}:{}/admin/course/reaction/point".format(self.host, self.port)"
-
+        # 设置检查点
+        points = data["points"]
+        for point in points:
+            self.info.append([self.seconds2time(point["startTime"]),
+                              self.seconds2time(point["endTime"]),
+                              point["action"],
+                              point["pointDes"]])
         # 获取课程图标
-        
+        url =  "http://{}:{}/admin/common/download/{}".format(self.host, self.port, data["icon"])
+        try:
+            response = requests.get(url, headers={"type": "thumbnail"})
+            pixmap = QPixmap()
+            pixmap.loadFromData(response.content)
+            pixmap = pixmap.scaled(self.courseIconLabel.size(), 
+                                                Qt.KeepAspectRatio, 
+                                                Qt.SmoothTransformation)
+            self.courseIconLabel.setPixmap(pixmap)
+        except:
+            self.showDialog(self.tr("Server Error"))
+            return
         # 获取课程视频
+        url =  "http://{}:{}/admin/common/download/{}".format(self.host, self.port, data["videoPath"])
+        # TODO 使用配置指定文件路径
+        try:
+            response = requests.get(url, headers={"type": "video"})
+            with open("app/temp/course.mp4",'wb') as f:
+                f.write(response.content) 
+            self.openVideo(fileName="app/temp/course.mp4", flag=False)
+        except Exception as e:
+            print(e)
+            self.showDialog(self.tr("Server Error"))
+            return
+        self.showTable()
     def __initLayout(self):
         self.pointTable.setFixedWidth(600)
         self.videoWidget.setMinimumSize(800,600)
@@ -194,13 +215,15 @@ class ReactionWindow(ScrollArea):
         self.addBtn.clicked.connect(self.addPoint)
         self.submitBtn.clicked.connect(self.submit)
         self.courseIconBtn.clicked.connect(self.getIcon)
-    def openVideo(self):
-        fileName, _ = QFileDialog.getOpenFileName(self, self.tr("Open Video"), "", "Video Files (*.mp4 *.flv *.ts *.mts *.avi *.wmv *.mov *.rmvb *.rm *.asf *.m4v *.mkv)")
+    def openVideo(self, clicked=False, fileName=None, flag=True):
+        if fileName is None:   
+            fileName, _ = QFileDialog.getOpenFileName(self, self.tr("Open Video"), "", "Video Files (*.mp4 *.flv *.ts *.mts *.avi *.wmv *.mov *.rmvb *.rm *.asf *.m4v *.mkv)")
         if fileName:
             self.player.setMedia(QMediaContent(QUrl.fromLocalFile(fileName)))
             self.player.play()
             self.timer.start()
-            self.videoPath = fileName
+            if flag:
+                self.videoPath = fileName
 
     def pauseVideo(self):
         if self.player.state() == QMediaPlayer.PlayingState:
@@ -216,10 +239,10 @@ class ReactionWindow(ScrollArea):
     
     def updateTime(self):
         if not self.sliderDragging:
-            current_time = self.player.position()
+            currentTime = self.player.position()
             duration = self.player.duration()
-            self.slider.setValue(int(current_time/ (duration+0.01) * 1000))
-            self.timeLabel.setText(f"""{self.formatTime(current_time // 1000)} / {self.formatTime(duration // 1000)}""")
+            self.slider.setValue(int(currentTime/ (duration+0.01) * 1000))
+            self.timeLabel.setText(f"""{self.formatTime(currentTime // 1000)} / {self.formatTime(duration // 1000)}""")
 
     def formatTime(self, seconds):
         minutes = int(seconds) // 60
@@ -237,7 +260,7 @@ class ReactionWindow(ScrollArea):
     def addPoint(self):
         startTime = self.startEdit.time().toString("mm:ss")
         endTime = self.endEdit.time().toString("mm:ss")
-        action = self.actionCombox.currentText()
+        action = self.actionCombox.currentIndex()
         des = self.desTextEdit.toPlainText()
         if startTime >= endTime:
             self.showDialog(self.tr("Start time must be less than end time"))
@@ -262,30 +285,31 @@ class ReactionWindow(ScrollArea):
         self.info = infocopy
         self.showTable()
     
-    def judgeTime(self, start1, end1, start2, end2):
-        if (start1 > start2):
-            start1, start2 = start2, start1
-            end1, end2 = end2, end1
-        return end1 < start2
-
     def time2seconds(self, timeString):
         minutes, seconds = map(int, timeString.split(':'))
-        total_seconds = minutes * 60 + seconds
-        return total_seconds
-
+        totalSeconds = minutes * 60 + seconds
+        return totalSeconds
+    
+    def seconds2time(self, second):
+        minutes, second = divmod(second, 60)
+        return f"{minutes:02d}:{second:02d}"
     def showTable(self):
         self.pointTable.setRowCount(len(self.info))
         for i in range(len(self.info)):
             button = PushButton(self.tr("Delete"))
             combox = ComboBox()
-            combox.addItems(["action1", "action2", "action3", "action4", "action5"])
-            combox.setCurrentIndex(self.actionDict[self.info[i][2]])
+            combox.addItems(self.actionList)
+            combox.setCurrentIndex(int(self.info[i][2]))
 
             button.clicked.connect(self.deleteInfo)
-            self.pointTable.setItem(i, 0, QTableWidgetItem(self.info[i][0]))
-            self.pointTable.setItem(i, 1, QTableWidgetItem(self.info[i][1]))
+            item = QTableWidgetItem(str(self.info[i][0]))
+            item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+            self.pointTable.setItem(i, 0, item)
+            item = QTableWidgetItem(str(self.info[i][1]))
+            item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+            self.pointTable.setItem(i, 1,item)
             self.pointTable.setCellWidget(i, 2, combox)
-            self.pointTable.setItem(i, 3, QTableWidgetItem(self.info[i][3]))
+            self.pointTable.setItem(i, 3, QTableWidgetItem(str(self.info[i][3])))
             self.pointTable.setCellWidget(i, 4, button)
 
     def deleteInfo(self):
@@ -295,19 +319,27 @@ class ReactionWindow(ScrollArea):
             if index.isValid():
                 self.info.pop(index.row())
                 self.showTable()
-        row = self.pointTable.currentRow()
-        self.info.pop(row)
-        self.showTable()
+
+        # row = self.pointTable.currentRow()
+        # self.info.pop(row)
+        # self.showTable()
 
     def submit(self):
+        # 校验必填项
+        if courseName == "":
+            self.showDialog(self.tr("Course name is required"))
+            return
+        if len(self.info) == 0:
+            self.showDialog(self.tr("Please add at least one point"))
+            return
         # 上传课程封面
         if self.iconPath is not None:
             url = "http://{}:{}/admin/common/upload".format(self.host, self.port)
-            headers = {"type": "img"}
+            headers = {"type": "thumbnail"}
             files = [('file', (self.iconPath, open(self.iconPath, 'rb'), 'image/png'))]
             try:
                 response = requests.post(url, files=files, headers=headers)
-                courseIcon = json.loads(response.text)["data"]
+                self.iconPath = json.loads(response.text)["data"]
             except:
                 self.showDialog(self.tr("Upload Image failed"))
                 return 
@@ -323,7 +355,7 @@ class ReactionWindow(ScrollArea):
             files = [('file', (self.videoPath, open(self.videoPath, 'rb'), 'application/octet-stream'))]
             try:
                 response = requests.post(url, files=files, headers=headers)
-                videoPath = json.loads(response.text)["data"]
+                self.videoPath = json.loads(response.text)["data"]
             except:
                 self.showDialog(self.tr("Upload Video failed"))
                 return
@@ -332,37 +364,36 @@ class ReactionWindow(ScrollArea):
                 self.showDialog(self.tr("Please upload course video"))
                 return    
         # 上传课程信息
-        # 校验必填项
-        courseName = self.courseNameLineEdit.text()
-        if courseName == "":
-            self.showDialog(self.tr("Course name is required"))
-            return
         
+        courseName = self.courseNameLineEdit.text()
 
+        
         url = "http://{}:{}/admin/course/reaction".format(self.host, self.port)
         point = []
         for i in range(len(self.info)):
             point.append({
                 "startTime": self.time2seconds(self.info[i][0]),
                 "endTime": self.time2seconds(self.info[i][1]),
-                "action": self.actionDict[self.info[i][2]],
+                "action": self.info[i][2],
                 "pointDes": self.info[i][3],
                 })
         data = {
             "id": self.courseId,
             "courseName": self.courseNameLineEdit.text(),
             "courseDes": self.courseDesTextEdit.toPlainText(),
-            "videoPath": videoPath,
-            "icon": courseIcon,
             "status": 1,
             "pointList": point,
         }
+        if self.videoPath is not None:
+            data["videoPath"] = self.videoPath
+        if self.iconPath is not None:
+            data["icon"] = self.iconPath
         url = "http://{}:{}/admin/course/reaction".format(self.host, self.port)
         try:
             if self.courseId is not None:
-                response = requests.post(url, json=data)
-            else:
                 response = requests.put(url, json=data)
+            else:
+                response = requests.post(url, json=data)
             statusCode = json.loads(response.text)["code"]
             if statusCode != 1:
                 self.showDialog(self.tr(json.loads(response.text)["msg"]))
@@ -378,7 +409,6 @@ class ReactionWindow(ScrollArea):
                                                    "Image Files (*.png *.jpg *.jpeg)")
         
         if fileName:
-            # 将图片设置为按钮的图标（这里假设你希望将图片作为按钮背景，如果是作为图标，则无需转换为QPixmap）
             pixmap = QPixmap(fileName).scaled(self.courseIconLabel.size(), 
                                                Qt.KeepAspectRatio, 
                                                Qt.SmoothTransformation)
@@ -391,6 +421,10 @@ class ReactionWindow(ScrollArea):
         w.setTitleBarVisible(False)
         w.exec()
 
+    def closeEvent(self, event):
+        if self.parent_ is not None:
+            self.parent_.fresh()
+        event.accept()
 if __name__ == '__main__':
     # enable dpi scale
     QApplication.setHighDpiScaleFactorRoundingPolicy(
@@ -404,6 +438,6 @@ if __name__ == '__main__':
     translator = FluentTranslator(QLocale())
     app.installTranslator(translator)
 
-    w = ReactionWindow(1)
+    w = ReactionWindow(courseId=3)
     w.show()
     app.exec_()

@@ -1,25 +1,20 @@
-import sys
-import requests
 import json
+import sys
 
-
+import requests
+import yaml
+from PyQt5.QtCore import Qt, QUrl, QTimer, QLocale, QTime
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, 
-                             QVBoxLayout, QHBoxLayout, QTableWidgetItem, 
-                             QFileDialog, QSizePolicy, QStyledItemDelegate)
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtMultimediaWidgets import QVideoWidget
-from PyQt5.QtCore import Qt, QUrl, QTimer, QLocale, QTime, QBuffer, QIODevice
-
-from qfluentwidgets import (ScrollArea, FlowLayout,IconWidget,PillPushButton,
-                            SegmentedWidget, SmoothScrollArea,FluentTranslator,
-                            PushButton,LineEdit,TimeEdit,ComboBox,TextEdit,
-                            PrimaryPushButton, Dialog, ToolButton)
-from qfluentwidgets import FluentIcon as FIF
-
+from PyQt5.QtWidgets import (QApplication, QVBoxLayout, QHBoxLayout, QTableWidgetItem,
+                             QFileDialog, QSizePolicy)
 from qfluentwidgets import (BodyLabel, PushButton, Slider, TableWidget,
                             )
-import yaml
+from qfluentwidgets import FluentIcon as FIF
+from qfluentwidgets import (ScrollArea, FluentTranslator,
+                            LineEdit, TimeEdit, ComboBox, TextEdit,
+                            PrimaryPushButton, Dialog)
 
 
 class ReactionWindow(ScrollArea):
@@ -33,7 +28,7 @@ class ReactionWindow(ScrollArea):
 
         # controlLayout
         self.openBtn = PrimaryPushButton(self.tr("Open Video"))
-        self.playBtn = PrimaryPushButton(self.tr("Play"),self,FIF.PLAY)
+        self.playBtn = PrimaryPushButton(self.tr("Play"), self, FIF.PLAY)
         self.slider = Slider(Qt.Horizontal)
         self.timeLabel = BodyLabel()
         self.pointTable = TableWidget()
@@ -45,7 +40,7 @@ class ReactionWindow(ScrollArea):
         self.courseIconLabel = BodyLabel()
         self.courseIconBtn = PrimaryPushButton(self.tr("Choose Icon"))
         self.courseDesTextEdit = TextEdit()
-        
+
         self.startEdit = TimeEdit()
         self.endEdit = TimeEdit()
         self.getStartTimeBtn = PushButton(self.tr("Get Time"))
@@ -68,8 +63,8 @@ class ReactionWindow(ScrollArea):
         self.info = []
 
         # TODO 从服务端拉取，更新动作种类
-        self.actionList = ["action1","action2","action3","action4","action5",]
-        self.videoPath = None 
+        self.actionList = ["action1", "action2", "action3", "action4", "action5", ]
+        self.videoPath = None
         self.iconPath = None
 
         self.__initWidget()
@@ -78,8 +73,6 @@ class ReactionWindow(ScrollArea):
         self.initConfig()
         if self.courseId is not None:
             self.loadData()
-
-    
 
     def __initWidget(self):
         self.videoWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -97,9 +90,9 @@ class ReactionWindow(ScrollArea):
                                                    self.tr("Action"),
                                                    self.tr("Description"),
                                                    self.tr("Ops")])
-        
+
         self.actionCombox.addItems(self.actionList)
-        self.courseIconLabel.setFixedSize(160,160)
+        self.courseIconLabel.setFixedSize(160, 160)
         self.actionCombox.setCurrentIndex(0)
         self.courseIconBtn.setMaximumWidth(200)
         self.submitBtn.setMaximumWidth(200)
@@ -107,13 +100,14 @@ class ReactionWindow(ScrollArea):
         self.desTextEdit.setMaximumHeight(100)
 
     def initConfig(self):
-        config = yaml.load(open('./app/config/ServerConfig.yaml', 'r'), 
+        config = yaml.load(open('./app/config/ServerConfig.yaml', 'r'),
                            Loader=yaml.FullLoader)
         self.host = config["server"]["host"]
         self.port = config["server"]["port"]
+
     def loadData(self):
 
-        #TODO 整合所有的请求，封装到一个类中
+        # TODO 整合所有的请求，封装到一个类中
         # 获取课程信息
         url = "http://{}:{}/admin/course/reaction/{}".format(self.host, self.port, self.courseId)
         try:
@@ -138,34 +132,35 @@ class ReactionWindow(ScrollArea):
                               point["action"],
                               point["pointDes"]])
         # 获取课程图标
-        url =  "http://{}:{}/admin/common/download/{}".format(self.host, self.port, data["icon"])
+        url = f"http://{self.host}:{self.port}/admin/common/download/{data['icon']}"
         try:
             response = requests.get(url, headers={"type": "thumbnail"})
             pixmap = QPixmap()
             pixmap.loadFromData(response.content)
-            pixmap = pixmap.scaled(self.courseIconLabel.size(), 
-                                                Qt.KeepAspectRatio, 
-                                                Qt.SmoothTransformation)
+            pixmap = pixmap.scaled(self.courseIconLabel.size(),
+                                   Qt.KeepAspectRatio,
+                                   Qt.SmoothTransformation)
             self.courseIconLabel.setPixmap(pixmap)
         except:
             self.showDialog(self.tr("Server Error"))
             return
         # 获取课程视频
-        url =  "http://{}:{}/admin/common/download/{}".format(self.host, self.port, data["videoPath"])
+        url = "http://{}:{}/admin/common/download/{}".format(self.host, self.port, data["videoPath"])
         # TODO 使用配置指定文件路径
         try:
             response = requests.get(url, headers={"type": "video"})
-            with open("app/temp/course.mp4",'wb') as f:
-                f.write(response.content) 
+            with open("app/temp/course.mp4", 'wb') as f:
+                f.write(response.content)
             self.openVideo(fileName="app/temp/course.mp4", flag=False)
         except Exception as e:
             print(e)
             self.showDialog(self.tr("Server Error"))
             return
         self.showTable()
+
     def __initLayout(self):
         self.pointTable.setFixedWidth(600)
-        self.videoWidget.setMinimumSize(800,600)
+        self.videoWidget.setMinimumSize(800, 600)
         self.topLayout.addWidget(self.videoWidget)
         # self.topLayout.addWidget(self.pointTable)
 
@@ -196,7 +191,6 @@ class ReactionWindow(ScrollArea):
         self.infoLayout.addWidget(self.submitBtn)
         self.bottomLayout.addLayout(self.infoLayout)
 
-
         self.mainLayout.addLayout(self.topLayout)
         self.mainLayout.addLayout(self.controlLayout)
         self.mainLayout.addLayout(self.bottomLayout)
@@ -209,15 +203,17 @@ class ReactionWindow(ScrollArea):
         self.slider.sliderReleased.connect(lambda: self.changeSlider(False))
 
         self.timer.timeout.connect(self.updateTime)
-        
+
         self.getStartTimeBtn.clicked.connect(self.getTime)
         self.getEndTimeBtn.clicked.connect(self.getTime)
         self.addBtn.clicked.connect(self.addPoint)
         self.submitBtn.clicked.connect(self.submit)
         self.courseIconBtn.clicked.connect(self.getIcon)
+
     def openVideo(self, clicked=False, fileName=None, flag=True):
-        if fileName is None:   
-            fileName, _ = QFileDialog.getOpenFileName(self, self.tr("Open Video"), "", "Video Files (*.mp4 *.flv *.ts *.mts *.avi *.wmv *.mov *.rmvb *.rm *.asf *.m4v *.mkv)")
+        if fileName is None:
+            fileName, _ = QFileDialog.getOpenFileName(self, self.tr("Open Video"), "",
+                                                      "Video Files (*.mp4 *.flv *.ts *.mts *.avi *.wmv *.mov *.rmvb *.rm *.asf *.m4v *.mkv)")
         if fileName:
             self.player.setMedia(QMediaContent(QUrl.fromLocalFile(fileName)))
             self.player.play()
@@ -232,16 +228,16 @@ class ReactionWindow(ScrollArea):
         else:
             self.playBtn.setIcon(FIF.PLAY)
             self.player.play()
-    
+
     def changeSlider(self, isDragging):
         # TODO 拖动进度条
         self.sliderDragging = isDragging
-    
+
     def updateTime(self):
         if not self.sliderDragging:
             currentTime = self.player.position()
             duration = self.player.duration()
-            self.slider.setValue(int(currentTime/ (duration+0.01) * 1000))
+            self.slider.setValue(int(currentTime / (duration + 0.01) * 1000))
             self.timeLabel.setText(f"""{self.formatTime(currentTime // 1000)} / {self.formatTime(duration // 1000)}""")
 
     def formatTime(self, seconds):
@@ -257,6 +253,7 @@ class ReactionWindow(ScrollArea):
             self.startEdit.setTime(QTime(0, minutes, seconds))
         else:
             self.endEdit.setTime(QTime(0, minutes, seconds))
+
     def addPoint(self):
         startTime = self.startEdit.time().toString("mm:ss")
         endTime = self.endEdit.time().toString("mm:ss")
@@ -265,7 +262,7 @@ class ReactionWindow(ScrollArea):
         if startTime >= endTime:
             self.showDialog(self.tr("Start time must be less than end time"))
             return
-        
+
         for i in range(len(self.info)):
             if self.info[i][0] == startTime:
                 self.showDialog(self.tr("The start time is overlapped"))
@@ -277,22 +274,25 @@ class ReactionWindow(ScrollArea):
         # self.info.sort()
         infocopy = self.info[:]
         infocopy.sort()
-        for i in range(1,len(self.info)):
-            if infocopy[i][1] <= infocopy[i-1][1] or infocopy[i-1][1] >= infocopy[i][0]:
+        for i in range(1, len(self.info)):
+            if infocopy[i][1] <= infocopy[i - 1][1] or infocopy[i - 1][1] >= infocopy[i][0]:
                 self.showDialog(self.tr("The time is overlapped"))
                 self.info.pop(-1)
                 return
         self.info = infocopy
         self.showTable()
-    
-    def time2seconds(self, timeString):
+
+    @staticmethod
+    def time2seconds(timeString):
         minutes, seconds = map(int, timeString.split(':'))
         totalSeconds = minutes * 60 + seconds
         return totalSeconds
-    
-    def seconds2time(self, second):
+
+    @staticmethod
+    def seconds2time(second):
         minutes, second = divmod(second, 60)
         return f"{minutes:02d}:{second:02d}"
+
     def showTable(self):
         self.pointTable.setRowCount(len(self.info))
         for i in range(len(self.info)):
@@ -301,18 +301,18 @@ class ReactionWindow(ScrollArea):
             combox.addItems(self.actionList)
             combox.setCurrentIndex(int(self.info[i][2]))
 
-            button.clicked.connect(self.deleteInfo)
+            button.clicked.connect(self.deletePoint)
             item = QTableWidgetItem(str(self.info[i][0]))
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
             self.pointTable.setItem(i, 0, item)
             item = QTableWidgetItem(str(self.info[i][1]))
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-            self.pointTable.setItem(i, 1,item)
+            self.pointTable.setItem(i, 1, item)
             self.pointTable.setCellWidget(i, 2, combox)
             self.pointTable.setItem(i, 3, QTableWidgetItem(str(self.info[i][3])))
             self.pointTable.setCellWidget(i, 4, button)
 
-    def deleteInfo(self):
+    def deletePoint(self):
         button = self.sender()
         if button:
             index = self.pointTable.indexAt(button.pos())
@@ -325,6 +325,7 @@ class ReactionWindow(ScrollArea):
         # self.showTable()
 
     def submit(self):
+        courseName = self.courseNameLineEdit.text().strip()
         # 校验必填项
         if courseName == "":
             self.showDialog(self.tr("Course name is required"))
@@ -332,9 +333,10 @@ class ReactionWindow(ScrollArea):
         if len(self.info) == 0:
             self.showDialog(self.tr("Please add at least one point"))
             return
+        url = "http://{}:{}/admin/common/upload".format(self.host, self.port)
         # 上传课程封面
         if self.iconPath is not None:
-            url = "http://{}:{}/admin/common/upload".format(self.host, self.port)
+
             headers = {"type": "thumbnail"}
             files = [('file', (self.iconPath, open(self.iconPath, 'rb'), 'image/png'))]
             try:
@@ -342,12 +344,11 @@ class ReactionWindow(ScrollArea):
                 self.iconPath = json.loads(response.text)["data"]
             except:
                 self.showDialog(self.tr("Upload Image failed"))
-                return 
+                return
         else:
             if self.courseId is None:
                 self.showDialog(self.tr("Please upload course icon"))
                 return
-
 
         # 上传视频
         if self.videoPath is not None:
@@ -362,12 +363,9 @@ class ReactionWindow(ScrollArea):
         else:
             if self.courseId is None:
                 self.showDialog(self.tr("Please upload course video"))
-                return    
-        # 上传课程信息
-        
-        courseName = self.courseNameLineEdit.text()
+                return
+                # 上传课程信息
 
-        
         url = "http://{}:{}/admin/course/reaction".format(self.host, self.port)
         point = []
         for i in range(len(self.info)):
@@ -376,7 +374,7 @@ class ReactionWindow(ScrollArea):
                 "endTime": self.time2seconds(self.info[i][1]),
                 "action": self.info[i][2],
                 "pointDes": self.info[i][3],
-                })
+            })
         data = {
             "id": self.courseId,
             "courseName": self.courseNameLineEdit.text(),
@@ -388,7 +386,6 @@ class ReactionWindow(ScrollArea):
             data["videoPath"] = self.videoPath
         if self.iconPath is not None:
             data["icon"] = self.iconPath
-        url = "http://{}:{}/admin/course/reaction".format(self.host, self.port)
         try:
             if self.courseId is not None:
                 response = requests.put(url, json=data)
@@ -397,24 +394,23 @@ class ReactionWindow(ScrollArea):
             statusCode = json.loads(response.text)["code"]
             if statusCode != 1:
                 self.showDialog(self.tr(json.loads(response.text)["msg"]))
-                return 
+                return
         except:
             self.showDialog(self.tr("Upload Info failed"))
-            return 
-    
+            return
+
     def getIcon(self):
-        fileName, _ = QFileDialog.getOpenFileName(self, 
-                                                   "Open Image", 
-                                                   "", 
-                                                   "Image Files (*.png *.jpg *.jpeg)")
-        
+        fileName, _ = QFileDialog.getOpenFileName(self,
+                                                  "Open Image",
+                                                  "",
+                                                  "Image Files (*.png *.jpg *.jpeg)")
+
         if fileName:
-            pixmap = QPixmap(fileName).scaled(self.courseIconLabel.size(), 
-                                               Qt.KeepAspectRatio, 
-                                               Qt.SmoothTransformation)
+            pixmap = QPixmap(fileName).scaled(self.courseIconLabel.size(),
+                                              Qt.KeepAspectRatio,
+                                              Qt.SmoothTransformation)
             self.courseIconLabel.setPixmap(pixmap)
             self.iconPath = fileName
-
 
     def showDialog(self, msg):
         w = Dialog(self.tr("ERROR"), msg, self)
@@ -425,6 +421,8 @@ class ReactionWindow(ScrollArea):
         if self.parent_ is not None:
             self.parent_.fresh()
         event.accept()
+
+
 if __name__ == '__main__':
     # enable dpi scale
     QApplication.setHighDpiScaleFactorRoundingPolicy(
@@ -438,6 +436,6 @@ if __name__ == '__main__':
     translator = FluentTranslator(QLocale())
     app.installTranslator(translator)
 
-    w = ReactionWindow(courseId=3)
+    w = ReactionWindow(courseId=None)
     w.show()
     app.exec_()

@@ -33,7 +33,7 @@ from qfluentwidgets import FluentIcon as FIF
 from common.style_sheet import StyleSheet
 from dataclasses import dataclass
 
-from ReactionWindow import ReactionWindow
+from .ReactionWindow import ReactionWindow
 
 @dataclass
 class Course:
@@ -80,6 +80,7 @@ class CourseCardView(SmoothScrollArea):
     #     card = CourseCard(courseName, courseImgPath)
     #     self.flowLayout.addWidget(card)
     def loadData(self):
+        return
         # TODO 暂时不考虑分页，实现数据展示
         url = "http://{}:{}/admin/course/{}/all".format(host, port, self.courseType)
         try:

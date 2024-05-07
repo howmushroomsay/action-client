@@ -1,29 +1,30 @@
-import sys
-import yaml
 import json
-import requests
+import sys
 
-from PyQt5.QtCore import Qt, QTranslator, QLocale
+import httpx
+import yaml
+from PyQt5.QtCore import Qt, QLocale
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtWidgets import QApplication
-from qframelesswindow import FramelessWindow, StandardTitleBar, AcrylicWindow
-from .Ui_LoginWindow import Ui_Form
-from qfluentwidgets import setThemeColor, FluentTranslator, setTheme, Theme, SplitTitleBar, Dialog
+from qfluentwidgets import setThemeColor, FluentTranslator, SplitTitleBar, Dialog
+from qframelesswindow import AcrylicWindow
 
 from .SiguUpWindow import SignUpWindow
-from ..mainWindow.adminWindow import adminWindow
+from .Ui_LoginWindow import Ui_Form
+from ..mainWindow.AdminWindow import AdminWindow
+from app.net.admin import adminConfig
+
+
 class LoginWindow(AcrylicWindow, Ui_Form):
 
     def __init__(self):
         super().__init__()
         self.setupUi(self)
-        # setTheme(Theme.DARK)
         setThemeColor('#28afe9')
 
         self.setTitleBar(SplitTitleBar(self))
         self.titleBar.raise_()
 
-        # self.label.setScaledContents(False)
         self.setWindowTitle(self.tr('Action-Login'))
         self.setWindowIcon(QIcon(":/images/logo.png"))
         self.resize(1000, 650)
@@ -43,26 +44,23 @@ class LoginWindow(AcrylicWindow, Ui_Form):
 
         desktop = QApplication.desktop().availableGeometry()
         w, h = desktop.width(), desktop.height()
-        self.move(w//2 - self.width()//2, h//2 - self.height()//2)
+        self.move(w // 2 - self.width() // 2, h // 2 - self.height() // 2)
 
     def initConfig(self):
-        config = yaml.load(open('./app/config/ServerConfig.yaml', 'r'), 
-                           Loader=yaml.FullLoader)
-        self.host = config["server"]["host"]
-        self.port = config["server"]["port"]
-        config = yaml.load(open('./app/config/ClientConfig.yaml', 'r'), 
-                           Loader=yaml.FullLoader)
-        if (config["login"]["isRememberedUsername"]):
+        with open("./app/config/ClientConfig.yaml", 'r') as f:
+            clientConfig = yaml.load(f, Loader=yaml.FullLoader)
+        if clientConfig["login"]["isRememberedUsername"]:
             self.usernameCheckBox.setChecked(True)
-            self.usernameLineEdit.setText(config["login"]["username"])
-        if (config["login"]["isRememberedPassword"]):
+            self.usernameLineEdit.setText(clientConfig["login"]["username"])
+        if clientConfig["login"]["isRememberedPassword"]:
             self.passwordCheckBox.setChecked(True)
-            self.passwordLineEdit.setText(config["login"]["password"])
+            self.passwordLineEdit.setText(clientConfig["login"]["password"])
+
     def initFun(self):
         self.signInBtn.clicked.connect(self.signIn)
         self.signUpBtn.clicked.connect(self.signUp)
-        # self.forgotPasswordBtn.clicked.connect(self.forgotPassword)
-    
+        self.forgotPasswordBtn.clicked.connect(self.forgotPassword)
+
     def signIn(self):
         username = self.usernameLineEdit.text()
         password = self.passwordLineEdit.text()
@@ -72,52 +70,46 @@ class LoginWindow(AcrylicWindow, Ui_Form):
         if password == "":
             self.passwordLineEdit.setPlaceholderText(self.tr("请输入密码"))
             return
-        url = "http://{}:{}/admin/usr/login".format(self.host, self.port)
-        payload = json.dumps({"username": username, "password": password})
-        headers = {"Content-Type": "application/json"}
-        response = requests.post(url, data=payload, headers=headers)
+        url = f'http://{adminConfig.host}:{adminConfig.port}/admin/usr/login'
+        response = httpx.post(url, json={"username": username, "password": password},
+                              headers={"Content-Type": "application/json"})
         response = json.loads(response.text)
         # 登录成功，保存token，跳转进入下一界面
-        if (response["code"] == 1):
+        if response["code"] == 1:
             token = response["data"]["token"]
-            with open('./app/config/ClientConfig.yaml','r') as f:
+            with open('./app/config/ClientConfig.yaml', 'r') as f:
                 config = yaml.load(f, Loader=yaml.FullLoader)
                 config["user"]["token"] = token
-                # yaml.(mapping=2, sequence=4, offset=2)  
-            with open('./app/config/ClientConfig.yaml','w') as f:                
+            with open('./app/config/ClientConfig.yaml', 'w') as f:
                 yaml.dump(config, f)
             self.hide()
             if response["data"]["id"] == 0:
                 # 管理员账户，进入管理端
-                adminWin = adminWindow(self)
+                adminWin = AdminWindow(self)
                 adminWin.show()
-                
-            else:
-                userWindow = userWindow(self)
-                userWindow.show()
-                
-            
         else:
             errorMsg = response["msg"]
             self.showDialog(errorMsg)
-    
+
     def showDialog(self, msg):
         title = self.tr('错误')
         w = Dialog(title, msg, self)
         w.setTitleBarVisible(False)
         w.exec()
-  
+
     def signUp(self):
         signUpWindow = SignUpWindow(self)
-        signUpWindow.show() 
+        signUpWindow.show()
         # self.hide()
+
+    def forgotPassword(self):
+        pass
 
     def resizeEvent(self, e):
         super().resizeEvent(e)
         pixmap = QPixmap(":/images/background.jpg").scaled(
             self.label.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
         self.label.setPixmap(pixmap)
-
 
 
 if __name__ == '__main__':
@@ -133,6 +125,6 @@ if __name__ == '__main__':
     translator = FluentTranslator(QLocale())
     app.installTranslator(translator)
 
-    w = LoginWindow()
-    w.show()
+    window = LoginWindow()
+    window.show()
     app.exec_()

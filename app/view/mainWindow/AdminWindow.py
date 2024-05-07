@@ -1,41 +1,29 @@
-import sys
 import os
-current_path = os.path.dirname(os.path.abspath(__file__))
+import sys
 
-# 添加上上级目录到sys.path
-parent_path = os.path.abspath(os.path.join(current_path, '..'))
-grandparent_path = os.path.abspath(os.path.join(parent_path, '..'))
-sys.path.append(grandparent_path)
-sys.path.append(os.path.abspath('.'))
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QApplication, QWidget
+from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt, QSize, QTranslator
 
-from qfluentwidgets import (NavigationItemPosition, MSFluentWindow, SplashScreen, 
-                            setThemeColor, NavigationBarPushButton, toggleTheme, 
-                            setTheme, darkdetect, Theme, FluentWindow, 
+from qfluentwidgets import (SplashScreen, toggleTheme, FluentWindow,
                             FluentTranslator)
 from qfluentwidgets import FluentIcon as FIF
-from qfluentwidgets import InfoBar, InfoBarPosition
 
 from common.config import cfg
-from common.icon import Icon
-from common.signal_bus import signalBus
-from common.translator import Translator
-from app.common import resource_rc
 
-from HomeInterface import HomeInterface
-from UserManagerInterface import UserManagerInterface
-from SettingInterface import SettingInterface
-from CourseManagerInterface import CourseManagerInterface
-class adminWindow(FluentWindow):
+from .HomeInterface import HomeInterface
+from .UserManagerInterface import UserManagerInterface
+from .SettingInterface import SettingInterface
+from .CourseManagerInterface import CourseManagerInterface
+
+
+class AdminWindow(FluentWindow):
 
     def __init__(self, parent=None):
         super().__init__()
         self.parent_ = parent
 
-        self.initWindow()
-
+        self.__initWindow()
 
         self.homeInterface = HomeInterface(self)
         self.userManagerInterface = UserManagerInterface(self)
@@ -47,9 +35,7 @@ class adminWindow(FluentWindow):
         self.initNavigation()
         self.splashScreen.finish()
 
-
-    
-    def initWindow(self):
+    def __initWindow(self):
         # 禁用最大化
         self.titleBar.maxBtn.setHidden(True)
         self.titleBar.maxBtn.setDisabled(True)
@@ -73,12 +59,12 @@ class adminWindow(FluentWindow):
     def initNavigation(self):
         self.addSubInterface(self.homeInterface, FIF.HOME, self.tr("Home"))
         self.addSubInterface(self.userManagerInterface, FIF.PEOPLE, self.tr("User Management"))
-        self.addSubInterface(self.courseManagerInterface, FIF.BOOK_SHELF,self.tr("Course Management"))
-        self.addSubInterface(
-            self.settingInterface, FIF.SETTING, self.tr('Settings'))
+        self.addSubInterface(self.courseManagerInterface, FIF.BOOK_SHELF, self.tr("Course Management"))
+        self.addSubInterface(self.settingInterface, FIF.SETTING, self.tr('Settings'))
 
     def toggleTheme(self):
         toggleTheme()
+
 
 if __name__ == '__main__':
     # enable dpi scale
@@ -108,7 +94,7 @@ if __name__ == '__main__':
     app.installTranslator(galleryTranslator)
 
     # create main window
-    w = adminWindow()
-    w.show()
+    window = AdminWindow()
+    window.show()
 
     app.exec_()

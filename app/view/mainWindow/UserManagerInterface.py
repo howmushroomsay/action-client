@@ -1,26 +1,17 @@
 # coding:utf-8
 import json
-import sys
-import os
+
 import requests
 import yaml
-# 获取当前脚本所在路径
-current_path = os.path.dirname(os.path.abspath(__file__))
-
-# 添加上上级目录到sys.path
-parent_path = os.path.abspath(os.path.join(current_path, '..'))
-grandparent_path = os.path.abspath(os.path.join(parent_path, '..'))
-sys.path.append(grandparent_path)
-
-from PyQt5.QtCore import Qt, QRectF, QRect
-from PyQt5.QtGui import QPixmap, QPainter, QBrush, QPainterPath, QIntValidator
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QSizePolicy, 
+from PyQt5.QtCore import Qt, QRect
+from PyQt5.QtGui import QIntValidator
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QSizePolicy,
                              QSpacerItem, QAbstractItemView, QTableWidgetItem,
-                             QHeaderView, )
-from qfluentwidgets import (ScrollArea, FluentIcon, BodyLabel, LineEdit, 
-                            SwitchButton, TableWidget, ComboBox, Dialog, PrimaryToolButton,)
+                             )
 from qfluentwidgets import FluentIcon as FIF
-from common.style_sheet import StyleSheet
+from qfluentwidgets import (ScrollArea, BodyLabel, LineEdit,
+                            SwitchButton, TableWidget, ComboBox, Dialog, PrimaryToolButton, )
+
 
 class UserManagerInterface(ScrollArea):
 
@@ -28,11 +19,11 @@ class UserManagerInterface(ScrollArea):
         super().__init__(parent)
         # 获取数据
         # self.setFixedHeight(350)
-        self.initWidget()
-        
+        self.__initWidget()
+
         self.initFun()
         self.initConfig()
-        
+
         self.currentPage = 1
         self.totalPage = 1
         self.pageSize = 10
@@ -40,10 +31,8 @@ class UserManagerInterface(ScrollArea):
         self.Page()
         self.Page()
         # StyleSheet.VIEW_INTERFACE.apply(self)
-        
-        
 
-    def initWidget(self):
+    def __initWidget(self):
         self.setObjectName('userManagerInterface')
         self.view = QWidget(self)
         self.view.setObjectName('view')
@@ -65,7 +54,7 @@ class UserManagerInterface(ScrollArea):
         self.flushBtn = PrimaryToolButton(FIF.SYNC)
         self.flushBtn.setObjectName("flushBtn")
         topLayout.addWidget(self.flushBtn)
-        
+
         # self.statusBtn = PushButton(self.tr("Enable/Disable"))
         # self.statusBtn.setObjectName('statusBtn')
         # topLayout.addWidget(self.statusBtn)
@@ -99,14 +88,14 @@ class UserManagerInterface(ScrollArea):
         self.pageLineEdit.setFixedWidth(45)
         self.pageLineEdit.setObjectName("pageLineEdit")
         self.pageLineEdit.setText("1")
-        self.pageLineEdit.setValidator( QIntValidator())
+        self.pageLineEdit.setValidator(QIntValidator())
         bottomLayout.addWidget(self.pageLineEdit)
         label = BodyLabel()
         label.setText(self.tr("Page"))
         bottomLayout.addWidget(label)
         bottomLayout.addItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
         self.mainLayout.addLayout(bottomLayout)
-    
+
     def initTable(self):
         self.tableWidget = TableWidget(self.view)
         self.tableWidget.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -123,7 +112,6 @@ class UserManagerInterface(ScrollArea):
         self.tableWidget.horizontalHeader().setStretchLastSection(True)
         self.tableWidget.verticalHeader().setVisible(False)
 
-    
     def initFun(self):
         self.flushBtn.clicked.connect(self.Page)
         self.searchBtn.clicked.connect(self.searchData)
@@ -132,38 +120,39 @@ class UserManagerInterface(ScrollArea):
         self.prevBtn.clicked.connect(self.prevPage)
         self.nextBtn.clicked.connect(self.nextPage)
         self.pageLineEdit.returnPressed.connect(self.changePage)
-    
+
     def initConfig(self):
         # TODO 配置改造
-        config = yaml.load(open('./app/config/ServerConfig.yaml', 'r'), 
+        config = yaml.load(open('./app/config/ServerConfig.yaml', 'r'),
                            Loader=yaml.FullLoader)
         self.host = config["server"]["host"]
         self.port = config["server"]["port"]
-        config = yaml.load(open('./app/config/ClientConfig.yaml', 'r'), 
+        config = yaml.load(open('./app/config/ClientConfig.yaml', 'r'),
                            Loader=yaml.FullLoader)
         self.token = config["user"]["token"]
-    
-    def Page(self, name=""):
+
+    def Page(self):
         name = self.usernameLineEdit.text()
         url = "http://{}:{}/admin/usr/page".format(self.host, self.port)
-        payload = json.dumps({
-            "name": name if name is not None and name != "" else None,
+        payload = {
             "page": self.currentPage,
             "pageSize": self.pageSize
-        })
+        }
+        if name != "":
+            payload["ame"] = name
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
             "token": self.token}
         try:
-            response = requests.get(url, data=payload, headers=headers)
+            response = requests.get(url, json=payload, headers=headers)
         except:
             self.showDialog(self.tr("Server Error"))
             return
         response = json.loads(response.text)
         # self.tableWidget.clear()
         self.tableWidget.setRowCount(0)
-        if (response["code"] == 1):
+        if response["code"] == 1:
             self.totalNum = response["data"]["total"]
             self.numLabel.setText(self.tr("{} in total".format(self.totalNum)))
             self.totalPage = (self.totalNum + self.pageSize - 1) // self.pageSize
@@ -177,30 +166,31 @@ class UserManagerInterface(ScrollArea):
                 button.setText("Enable" if records[i]["status"] == 1 else "Disable")
                 button.checkedChanged.connect(self.changeStatus)
                 item = QTableWidgetItem(records[i]["name"])
-                item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
+                item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
                 self.tableWidget.setItem(i, 0, item)
                 item = QTableWidgetItem(records[i]["username"])
-                item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
+                item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
                 self.tableWidget.setItem(i, 1, item)
                 item = QTableWidgetItem(records[i]["sex"])
-                item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
+                item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
                 self.tableWidget.setItem(i, 2, item)
                 item = QTableWidgetItem(records[i]["phone"])
-                item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
+                item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
                 self.tableWidget.setItem(i, 3, item)
                 item = QTableWidgetItem(records[i]["idNumber"])
-                item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
+                item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
                 self.tableWidget.setItem(i, 4, item)
-                
+
                 self.tableWidget.setCellWidget(i, 5, button)
                 item = QTableWidgetItem(records[i]["updateTime"])
-                item.setTextAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
+                item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
                 self.tableWidget.setItem(i, 6, item)
             for row in range(self.tableWidget.rowCount()):
                 self.tableWidget.setRowHeight(row, 50)
             # self.tableWidget.resizeRowsToContents()
         else:
             self.showDialog(response["msg"])
+
     def searchData(self):
         self.Page()
 
@@ -213,9 +203,9 @@ class UserManagerInterface(ScrollArea):
                 row = index.row()
                 userId = self.records[row]["id"]
                 status = 1 if button.isChecked() else 0
-                url = "http://{}:{}/admin/usr/status/{}?id={}".format(self.host, 
-                                                                      self.port, 
-                                                                      status, 
+                url = "http://{}:{}/admin/usr/status/{}?id={}".format(self.host,
+                                                                      self.port,
+                                                                      status,
                                                                       userId)
                 header = {
                     "Content-Type": "application/json",
@@ -227,18 +217,17 @@ class UserManagerInterface(ScrollArea):
                 #     self.showDialog(self.tr("Server Error"))
                 #     return
 
-
     def changePageSize(self):
         oldPageSize = self.pageSize
         self.pageSize = int(self.perPageComboBox.currentText())
         self.currentPage = ((self.currentPage - 1) * oldPageSize // self.pageSize) + 1
-        self.pageLineEdit.setText(str(self.currentPage))        
+        self.pageLineEdit.setText(str(self.currentPage))
         self.pageLabel.setText(str(self.currentPage))
         self.Page()
         pass
 
     def prevPage(self):
-        if (self.currentPage == 1):
+        if self.currentPage == 1:
             return
         else:
             self.currentPage -= 1
@@ -247,13 +236,14 @@ class UserManagerInterface(ScrollArea):
             self.Page()
 
     def nextPage(self):
-        if (self.currentPage == self.totalPage):
+        if self.currentPage == self.totalPage:
             return
         else:
             self.currentPage += 1
             self.pageLineEdit.setText(str(self.currentPage))
             self.pageLabel.setText(str(self.currentPage))
             self.Page()
+
     def changePage(self):
         page = int(self.pageLineEdit.text())
 
@@ -262,6 +252,7 @@ class UserManagerInterface(ScrollArea):
         self.currentPage = page
         self.pageLabel.setText(str(self.currentPage))
         self.Page()
+
     def showDialog(self, msg):
         title = self.tr('ERROR')
         w = Dialog(title, msg, self)

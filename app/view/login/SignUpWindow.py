@@ -1,18 +1,18 @@
-import sys
-import requests
 import json
+import sys
+
+import requests
 import yaml
-
-from PyQt5.QtCore import Qt, QTranslator, QLocale
-from PyQt5.QtGui import QIcon, QPixmap
+from PyQt5.QtCore import Qt, QLocale
+from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtWidgets import QWidget
-from qframelesswindow import FramelessWindow, StandardTitleBar, AcrylicWindow
-from qfluentwidgets import setThemeColor, FluentTranslator, Dialog, SplitTitleBar,FluentWindow
-from .Ui_SignUPWindow import Ui_Form
+from qfluentwidgets import setThemeColor, FluentTranslator, Dialog, SplitTitleBar, FluentWindow
 
-class SignUpWindow(FluentWindow, Ui_Form):
-    
+from .Ui_SignUPWindow import Form
+
+
+class SignUpWindow(FluentWindow, Form):
+
     def __init__(self, parent=None):
         super().__init__()
         self.parentWindow = parent
@@ -33,20 +33,19 @@ class SignUpWindow(FluentWindow, Ui_Form):
         self.sexComboBox.addItems(items)
         self.sexComboBox.setCurrentIndex(-1)
 
-        
-
         desktop = QApplication.desktop().availableGeometry()
         w, h = desktop.width(), desktop.height()
-        self.move(w//2 - self.width()//2, h//2 - self.height()//2)
+        self.move(w // 2 - self.width() // 2, h // 2 - self.height() // 2)
 
     def initFun(self):
         self.signUpBtn.clicked.connect(self.signUp)
         self.backBtn.clicked.connect(self.back)
-    
+
     def initConfig(self):
         config = yaml.load(open('./app/config/ServerConfig.yaml', 'r'), Loader=yaml.FullLoader)
         self.host = config["server"]["host"]
         self.port = config["server"]["port"]
+
     def signUp(self):
         username = self.usernameLineEdit.text()
         name = self.nameLineEdit.text()
@@ -69,7 +68,7 @@ class SignUpWindow(FluentWindow, Ui_Form):
             self.passwordLineEdit_2.clear()
             self.passwordLineEdit_2.setPlaceholderText("两次输入密码不一致")
             return
-        
+
         url = "http://{}:{}/admin/usr".format(self.host, self.port)
         payload = json.dumps({
             "username": username,
@@ -77,25 +76,28 @@ class SignUpWindow(FluentWindow, Ui_Form):
             "phone": phone,
             "sex": sex,
             "idNumber": idNumber
-            })
+        })
         headers = {
             'Content-Type': 'application/json'
-            }
+        }
         response = requests.post(url, data=payload, headers=headers)
         response = json.loads(response.text)
-        if (response["code"] == 1):
+        if response["code"] == 1:
             self.showDialog("注册成功")
         else:
-            erroMsg = response["msg"]
-            self.showDialog(erroMsg)
+            errorMsg = response["msg"]
+            self.showDialog(errorMsg)
 
     def showDialog(self, msg):
         w = Dialog("", msg, self)
 
         # w.setTitleBarVisible(False)
-        w.exec()     
+        w.exec()
+
     def back(self):
         self.close()
+
+
 if __name__ == '__main__':
     # enable dpi scale
     QApplication.setHighDpiScaleFactorRoundingPolicy(
@@ -109,6 +111,6 @@ if __name__ == '__main__':
     translator = FluentTranslator(QLocale())
     app.installTranslator(translator)
 
-    w = SignUpWindow()
-    w.show()
+    win = SignUpWindow()
+    win.show()
     app.exec_()

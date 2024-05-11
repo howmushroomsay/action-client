@@ -4,4 +4,4 @@ login:
   password: '123456'
   username: szx
 user:
-  token: eyJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3MTUwNzk2MDcsInVzZXJJZCI6MH0.EFU8QOKfxV0LounLHBj_3buPVzUEoIYaJIt7Cf6Fr0U
+  token: eyJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3MTUzMTM4OTMsInVzZXJJZCI6MH0.QSEOLgiW1HaPjIH_wm8rJoe8flxS-QhnlmZ6LaX9eec

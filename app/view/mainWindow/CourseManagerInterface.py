@@ -1,39 +1,22 @@
 # coding:utf-8
 import json
-import sys
-import os
-import requests
-import yaml
-
-from app.common.config import isWin11
-# 获取当前脚本所在路径
-current_path = os.path.dirname(os.path.abspath(__file__))
-
-# 添加上上级目录到sys.path
-parent_path = os.path.abspath(os.path.join(current_path, '..'))
-grandparent_path = os.path.abspath(os.path.join(parent_path, '..'))
-sys.path.append(grandparent_path)
-
-config = yaml.load(open('./app/config/ServerConfig.yaml', 'r'), 
-                           Loader=yaml.FullLoader)
-host = config["server"]["host"]
-port = config["server"]["port"]
-
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QLabel, QPushButton,
-                             QHBoxLayout, QSizePolicy)
-
-
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QStackedWidget)
-from qfluentwidgets import (ScrollArea, FlowLayout,IconWidget,
-                            SegmentedWidget, SmoothScrollArea,
-                            PrimaryPushButton, CardWidget, BodyLabel)
-from qfluentwidgets import FluentIcon as FIF
-from common.style_sheet import StyleSheet
 from dataclasses import dataclass
 
+import requests
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPixmap
+from PyQt5.QtWidgets import (QLabel, QHBoxLayout, QSizePolicy)
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QStackedWidget)
+from qfluentwidgets import FluentIcon as FIF
+from qfluentwidgets import (ScrollArea, FlowLayout, IconWidget,
+                            SegmentedWidget, SmoothScrollArea,
+                            PrimaryPushButton, CardWidget, BodyLabel)
+
+from app.common.style_sheet import StyleSheet
+from app.net.admin import adminConfig
 from .ReactionWindow import ReactionWindow
+from .StandardWindow import StandardWindow
+
 
 @dataclass
 class Course:
@@ -47,6 +30,7 @@ class Course:
     updateTime: str
     createUser: int
     updateUser: int
+
 
 class CourseCardView(SmoothScrollArea):
 
@@ -67,26 +51,30 @@ class CourseCardView(SmoothScrollArea):
     def addCard(self, metadata):
         card = CourseCard(metadata, parent=self)
         self.flowLayout.addWidget(card)
+
     def page(self):
         # TODO
         pass
+
     def clearCard(self):
         self.flowLayout.removeAllWidgets()
-    
+
     def fresh(self):
         self.clearCard()
         self.loadData()
+
     # def addCard(self, courseName, courseImgPath):
     #     card = CourseCard(courseName, courseImgPath)
     #     self.flowLayout.addWidget(card)
     def loadData(self):
-        return
         # TODO 暂时不考虑分页，实现数据展示
-        url = "http://{}:{}/admin/course/{}/all".format(host, port, self.courseType)
+        url = "http://{}:{}/admin/course/{}/all".format(adminConfig.host, adminConfig.port, self.courseType)
         try:
             response = requests.get(url)
         except Exception as e:
             print(e)
+            return
+        if response.status_code != 200:
             return
         response = json.loads(response.text)
         if response["code"] == 0:
@@ -94,20 +82,26 @@ class CourseCardView(SmoothScrollArea):
             return
         data = response["data"]
         for d in data:
-            metadata = Course(d["id"], 
-                            d["courseName"],
-                            d["courseDes"],
-                            d["videoPath"],
-                            d["icon"],
-                            d["status"],
-                            d["createTime"],
-                            d["updateTime"],
-                            d["createUser"],
-                            d["updateUser"])
+            metadata = Course(d["id"],
+                              d["courseName"],
+                              d["courseDes"],
+                              d["videoPath"],
+                              d["icon"],
+                              d["status"],
+                              d["createTime"],
+                              d["updateTime"],
+                              d["createUser"],
+                              d["updateUser"])
             self.addCard(metadata)
+
+    def showDialog(self, msg):
+        pass
+
+
 class CourseCard(CardWidget):
     def __init__(self, metadata: Course, parent=None):
         super().__init__(parent=parent)
+        self.icon = None
         self.parent_ = parent
         self.metadata = metadata
 
@@ -116,30 +110,30 @@ class CourseCard(CardWidget):
         self.timeLabel = QLabel(metadata.updateTime, self)
         self.timeIcon = IconWidget(FIF.DATE_TIME, self)
         self.editBtn = PrimaryPushButton(self.tr("Edit"))
-        # self.detailBtn = PrimaryPushButton(self.tr("View Detials"))
+        # self.detailBtn = PrimaryPushButton(self.tr("View Details"))
         self.imgLabel = BodyLabel()
 
         self.mangerLayout = QVBoxLayout(self)
-        self.hearderLayout = QVBoxLayout()
+        self.heardLayout = QVBoxLayout()
         self.topLayout = QHBoxLayout()
-        self.bottonLayout = QHBoxLayout()
+        self.bottomLayout = QHBoxLayout()
         self.loadData()
         self.__initWidget()
         self.__initLayout()
         self.__initSubWidget()
         self.editBtn.clicked.connect(self.editCourse)
-        
+
     def loadData(self):
-        url =  "http://{}:{}/admin/common/download/{}".format(host, port, self.metadata.icon)
+        url = "http://{}:{}/admin/common/download/{}".format(adminConfig.host, adminConfig.port, self.metadata.icon)
         try:
             response = requests.get(url, headers={"type": "thumbnail"})
             self.icon = QPixmap()
             self.icon.loadFromData(response.content)
-            self.icon = self.icon.scaled(100, 100, Qt.KeepAspectRatio, 
-                                                    Qt.SmoothTransformation)
-                    
-        except:
-            pass
+            self.icon = self.icon.scaled(100, 100, Qt.KeepAspectRatio,
+                                         Qt.SmoothTransformation)
+
+        except Exception as e:
+            print(e)
 
     def __initWidget(self):
         self.setObjectName("CourseCard")
@@ -152,19 +146,19 @@ class CourseCard(CardWidget):
 
     def __initLayout(self):
         self.setFixedSize(360, 168)
-        self.mangerLayout.setAlignment(Qt.AlignmentFlag.AlignLeft | 
+        self.mangerLayout.setAlignment(Qt.AlignmentFlag.AlignLeft |
                                        Qt.AlignmentFlag.AlignTop)
         # self.mangerLayout.setContentsMargins(16, 12, 12, 12)
         self.topLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.hearderLayout.addWidget(self.titleLabel)
-        self.hearderLayout.addWidget(self.desLabel)
-        self.topLayout.addLayout(self.hearderLayout)
+        self.heardLayout.addWidget(self.titleLabel)
+        self.heardLayout.addWidget(self.desLabel)
+        self.topLayout.addLayout(self.heardLayout)
         self.topLayout.addWidget(self.imgLabel)
         self.mangerLayout.addLayout(self.topLayout)
-        self.bottonLayout.addWidget(self.timeIcon)
-        self.bottonLayout.addWidget(self.timeLabel)
-        self.bottonLayout.addWidget(self.editBtn)
-        self.mangerLayout.addLayout(self.bottonLayout)
+        self.bottomLayout.addWidget(self.timeIcon)
+        self.bottomLayout.addWidget(self.timeLabel)
+        self.bottomLayout.addWidget(self.editBtn)
+        self.mangerLayout.addLayout(self.bottomLayout)
 
     def __initSubWidget(self):
         self.desLabel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -174,10 +168,11 @@ class CourseCard(CardWidget):
 
         self.imgLabel.setPixmap(self.icon)
         self.mangerLayout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        
+
     def editCourse(self):
         editWindow = ReactionWindow(courseId=self.metadata.id)
         editWindow.show()
+
 
 class CardView(QWidget):
     def __init__(self, parent):
@@ -192,7 +187,6 @@ class CardView(QWidget):
 
         self.__initSubWidget()
         self.__initLayout()
-        
 
     def __initSubWidget(self):
         self.reactionCardView.setObjectName("ReactionCardView")
@@ -223,11 +217,8 @@ class CardView(QWidget):
     def onCurrentIndexChanged(self, index):
         widget = self.stackedContainer.widget(index)
         self.pivot.setCurrentItem(widget.objectName())
-    
- 
 
 
-        
 class CourseManagerInterface(ScrollArea):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -252,9 +243,9 @@ class CourseManagerInterface(ScrollArea):
         self.addBtn.setMaximumWidth(150)
         # TODO 创建新的css文件
         StyleSheet.NAVIGATION_VIEW_INTERFACE.apply(self)
-    
+
     def __initLayout(self):
-        self.viewContainer.setObjectName("CourseManegerInterfaceViewContainer")
+        self.viewContainer.setObjectName("CourseManagerInterfaceViewContainer")
 
         self.topLayout.addWidget(self.CourseLabel)
         self.topLayout.addWidget(self.addBtn)
@@ -263,13 +254,15 @@ class CourseManagerInterface(ScrollArea):
         self.containerLayout.setContentsMargins(36, 20, 36, 12)
         self.containerLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.containerLayout.addWidget(self.cardView)
-    
+
     def __initFun(self):
         self.addBtn.clicked.connect(self.addCourse)
-    
+
     def addCourse(self):
         current = self.cardView.stackedContainer.currentIndex()
         if current == 0:
             addWindow = ReactionWindow(parent=self.cardView.reactionCardView)
             addWindow.show()
-
+        elif current == 1:
+            addWindow = StandardWindow(parent=self.cardView.standardCardView)
+            addWindow.show()

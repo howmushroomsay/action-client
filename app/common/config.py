@@ -4,8 +4,8 @@ from enum import Enum
 
 from PyQt5.QtCore import QLocale
 from qfluentwidgets import (qconfig, QConfig, ConfigItem, OptionsConfigItem, BoolValidator,
-                            OptionsValidator, RangeConfigItem, RangeValidator,Theme,
-                            FolderListValidator, EnumSerializer, FolderValidator, ConfigSerializer, __version__)
+                            OptionsValidator, RangeConfigItem, RangeValidator, Theme,
+                            FolderListValidator, FolderValidator, ConfigSerializer, __version__)
 
 
 class Language(Enum):
@@ -48,7 +48,7 @@ class Config(QConfig):
         "adminWindow", "Language", Language.AUTO, OptionsValidator(Language), LanguageSerializer(), restart=True)
 
     # Material
-    blurRadius  = RangeConfigItem("Material", "AcrylicBlurRadius", 15, RangeValidator(0, 40))
+    blurRadius = RangeConfigItem("Material", "AcrylicBlurRadius", 15, RangeValidator(0, 40))
 
     # software update
     checkUpdateAtStartUp = ConfigItem("Update", "CheckUpdateAtStartUp", True, BoolValidator())
@@ -63,7 +63,6 @@ EXAMPLE_URL = "https://github.com/zhiyiYo/PyQt-Fluent-Widgets/tree/master/exampl
 FEEDBACK_URL = "https://github.com/zhiyiYo/PyQt-Fluent-Widgets/issues"
 RELEASE_URL = "https://github.com/zhiyiYo/PyQt-Fluent-Widgets/releases/latest"
 SUPPORT_URL = "https://afdian.net/a/zhiyiYo"
-
 
 cfg = Config()
 cfg.themeMode.value = Theme.AUTO

@@ -9,7 +9,7 @@ from qfluentwidgets import (SplashScreen, toggleTheme, FluentWindow,
                             FluentTranslator)
 from qfluentwidgets import FluentIcon as FIF
 
-from common.config import cfg
+from app.common.config import cfg
 
 from .HomeInterface import HomeInterface
 from .UserManagerInterface import UserManagerInterface

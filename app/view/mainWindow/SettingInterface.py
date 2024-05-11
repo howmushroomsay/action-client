@@ -1,28 +1,17 @@
-import sys
-import os
-
-# 获取当前脚本所在路径
-current_path = os.path.dirname(os.path.abspath(__file__))
-
-# 添加上上级目录到sys.path
-parent_path = os.path.abspath(os.path.join(current_path, '..'))
-grandparent_path = os.path.abspath(os.path.join(parent_path, '..'))
-sys.path.append(grandparent_path)
-
-from qfluentwidgets import (SettingCardGroup, SwitchSettingCard, FolderListDialog,
-                            OptionsSettingCard, PushSettingCard, HyperlinkCard,
-                            PrimaryPushSettingCard, ScrollArea, ComboBoxSettingCard,
-                            ExpandLayout, Theme, CustomColorSettingCard, setTheme,
-                            setThemeColor, RangeSettingCard, isDarkTheme)
+from PyQt5.QtCore import Qt, QUrl
+from PyQt5.QtGui import QDesktopServices
+from PyQt5.QtWidgets import QWidget, QLabel
+from app.common.config import cfg, HELP_URL, FEEDBACK_URL, AUTHOR, VERSION, YEAR, isWin11
+from app.common.signal_bus import signalBus
+from app.common.style_sheet import StyleSheet
 from qfluentwidgets import FluentIcon as FIF
 from qfluentwidgets import InfoBar
-from PyQt5.QtCore import Qt, pyqtSignal, QUrl, QStandardPaths
-from PyQt5.QtGui import QPixmap, QImage, QDesktopServices
-from PyQt5.QtWidgets import QWidget, QLabel, QFileDialog
+from qfluentwidgets import (SettingCardGroup, SwitchSettingCard, OptionsSettingCard, HyperlinkCard,
+                            PrimaryPushSettingCard, ScrollArea, ComboBoxSettingCard,
+                            ExpandLayout, CustomColorSettingCard, setTheme,
+                            setThemeColor)
 
-from common.config import cfg, HELP_URL, FEEDBACK_URL, AUTHOR, VERSION, YEAR, isWin11
-from common.signal_bus import signalBus
-from common.style_sheet import StyleSheet
+
 class SettingInterface(ScrollArea):
     """ Setting Interface """
 
@@ -109,7 +98,7 @@ class SettingInterface(ScrollArea):
         )
 
         self.__initWidget()
-    
+
     def __initWidget(self):
         self.resize(1000, 800)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -118,11 +107,11 @@ class SettingInterface(ScrollArea):
         self.setWidgetResizable(True)
         self.setObjectName('settingInterface')
 
-        #initialize style sheet
+        # initialize style sheet
         self.scrollWidget.setObjectName('scrollWidget')
         self.settingLabel.setObjectName('settingLabel')
         StyleSheet.SETTING_INTERFACE.apply(self)
-        
+
         self.micaCard.setEnabled(isWin11())
 
         self.__initLayout()
@@ -132,7 +121,7 @@ class SettingInterface(ScrollArea):
         """" Initialize layout"""
         self.settingLabel.move(36, 30)
 
-        #add cards to group
+        # add cards to group
         self.personalGroup.addSettingCard(self.micaCard)
         self.personalGroup.addSettingCard(self.themeCard)
         self.personalGroup.addSettingCard(self.themeColorCard)
@@ -148,7 +137,7 @@ class SettingInterface(ScrollArea):
         self.expandLayout.setContentsMargins(36, 10, 36, 0)
         self.expandLayout.addWidget(self.personalGroup)
         self.expandLayout.addWidget(self.aboutGroup)
-    
+
     def __showRestartTooltip(self):
         """ show restart tooltip"""
         InfoBar.success(
@@ -170,5 +159,4 @@ class SettingInterface(ScrollArea):
 
         # about
         self.feedbackCard.clicked.connect(
-            lambda: QDesktopServices.openUrl(QUrl(FEEDBACK_URL))
-        )
+            lambda: QDesktopServices.openUrl(QUrl(FEEDBACK_URL)))

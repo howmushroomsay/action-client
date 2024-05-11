@@ -1,7 +1,4 @@
-import httpx
 import yaml
-
-import os
 
 
 def singleton(cls):

@@ -11,7 +11,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class Ui_Form(object):
+class Form(object):
     def setupUi(self, Form):
         Form.setObjectName("Form")
         Form.resize(420, 500)
@@ -133,10 +133,10 @@ class Ui_Form(object):
         self.BodyLabel.raise_()
         self.layoutWidget.raise_()
 
-        self.retranslateUi(Form)
+        self.translateUi(Form)
         QtCore.QMetaObject.connectSlotsByName(Form)
 
-    def retranslateUi(self, Form):
+    def translateUi(self, Form):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "Form"))
         self.signUpBtn.setText(_translate("Form", "注册"))

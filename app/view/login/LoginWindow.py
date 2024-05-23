@@ -7,15 +7,15 @@ from PyQt5.QtCore import Qt, QLocale
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtWidgets import QApplication
 from qfluentwidgets import setThemeColor, FluentTranslator, SplitTitleBar, Dialog
-from qframelesswindow import AcrylicWindow
+from qframelesswindow import AcrylicWindow, FramelessWindow
 
-from .SiguUpWindow import SignUpWindow
+from .SignUpWindow import SignUpWindow
 from .Ui_LoginWindow import Ui_Form
 from ..mainWindow.AdminWindow import AdminWindow
 from app.net.admin import adminConfig
 
 
-class LoginWindow(AcrylicWindow, Ui_Form):
+class LoginWindow(FramelessWindow, Ui_Form):
 
     def __init__(self):
         super().__init__()
@@ -29,7 +29,7 @@ class LoginWindow(AcrylicWindow, Ui_Form):
         self.setWindowIcon(QIcon(":/images/logo.png"))
         self.resize(1000, 650)
 
-        self.windowEffect.setMicaEffect(self.winId(), isDarkMode=False)
+        # self.windowEffect.setMicaEffect(self.winId(), isDarkMode=False)
         self.setStyleSheet("LoginWindow{background: rgba(242, 242, 242, 0.8)}")
         self.titleBar.titleLabel.setStyleSheet("""
             QLabel{
@@ -71,25 +71,30 @@ class LoginWindow(AcrylicWindow, Ui_Form):
             self.passwordLineEdit.setPlaceholderText(self.tr("请输入密码"))
             return
         url = f'http://{adminConfig.host}:{adminConfig.port}/admin/usr/login'
-        response = httpx.post(url, json={"username": username, "password": password},
-                              headers={"Content-Type": "application/json"})
+        response = httpx.post(url, json={"username": username, "password": password})
         response = json.loads(response.text)
         # 登录成功，保存token，跳转进入下一界面
         if response["code"] == 1:
             token = response["data"]["token"]
+            refreshToken = response["data"]["refreshToken"]
             with open('./app/config/ClientConfig.yaml', 'r') as f:
                 config = yaml.load(f, Loader=yaml.FullLoader)
                 config["user"]["token"] = token
+                adminConfig.setToken(token)
+                config["user"]["refreshToken"] = refreshToken
+                adminConfig.setRefreshToken(refreshToken)
             with open('./app/config/ClientConfig.yaml', 'w') as f:
                 yaml.dump(config, f)
-            self.hide()
+
             if response["data"]["id"] == 0:
                 # 管理员账户，进入管理端
-                adminWin = AdminWindow(self)
+                adminWin = AdminWindow()
                 adminWin.show()
         else:
             errorMsg = response["msg"]
             self.showDialog(errorMsg)
+            return
+        self.close()
 
     def showDialog(self, msg):
         title = self.tr('错误')

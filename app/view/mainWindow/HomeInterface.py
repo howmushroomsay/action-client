@@ -1,3 +1,12 @@
+import sys
+import os
+current_path = os.path.dirname(os.path.abspath(__file__))
+
+# 添加上上级目录到sys.path
+parent_path = os.path.abspath(os.path.join(current_path, '..'))
+grandparent_path = os.path.abspath(os.path.join(parent_path, '..'))
+sys.path.append(grandparent_path)
+sys.path.append(os.path.abspath('.'))
 
 from PyQt5.QtCore import Qt, QRectF
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPainterPath, QLinearGradient

@@ -1,5 +1,6 @@
 # coding:utf-8
 import json
+import time
 from dataclasses import dataclass
 
 import requests
@@ -13,7 +14,7 @@ from qfluentwidgets import (ScrollArea, FlowLayout, IconWidget,
                             PrimaryPushButton, CardWidget, BodyLabel)
 
 from app.common.style_sheet import StyleSheet
-from app.net.admin import adminConfig
+from app.net.admin import adminConfig, HttpClientUtils
 from .ReactionWindow import ReactionWindow
 from .StandardWindow import StandardWindow
 
@@ -49,7 +50,7 @@ class CourseCardView(SmoothScrollArea):
         self.setViewportMargins(0, 5, 0, 5)
 
     def addCard(self, metadata):
-        card = CourseCard(metadata, parent=self)
+        card = CourseCard(metadata, parent=self, isStandard=self.courseType == 'standard')
         self.flowLayout.addWidget(card)
 
     def page(self):
@@ -70,7 +71,7 @@ class CourseCardView(SmoothScrollArea):
         # TODO 暂时不考虑分页，实现数据展示
         url = "http://{}:{}/admin/course/{}/all".format(adminConfig.host, adminConfig.port, self.courseType)
         try:
-            response = requests.get(url)
+            response = HttpClientUtils.doGetWithToken(url)
         except Exception as e:
             print(e)
             return
@@ -99,12 +100,12 @@ class CourseCardView(SmoothScrollArea):
 
 
 class CourseCard(CardWidget):
-    def __init__(self, metadata: Course, parent=None):
+    def __init__(self, metadata: Course, parent=None, isStandard=False):
         super().__init__(parent=parent)
         self.icon = None
         self.parent_ = parent
         self.metadata = metadata
-
+        self.isStandard = isStandard
         self.titleLabel = QLabel(metadata.courseName, self)
         self.desLabel = QLabel(metadata.courseDes, self)
         self.timeLabel = QLabel(metadata.updateTime, self)
@@ -124,9 +125,9 @@ class CourseCard(CardWidget):
         self.editBtn.clicked.connect(self.editCourse)
 
     def loadData(self):
-        url = "http://{}:{}/admin/common/download/{}".format(adminConfig.host, adminConfig.port, self.metadata.icon)
+        url = f"http://{adminConfig.host}:{adminConfig.port}/admin/common/download/{self.metadata.icon}"
         try:
-            response = requests.get(url, headers={"type": "thumbnail"})
+            response = HttpClientUtils.doGetWithToken(url, headers={"type": "thumbnail"})
             self.icon = QPixmap()
             self.icon.loadFromData(response.content)
             self.icon = self.icon.scaled(100, 100, Qt.KeepAspectRatio,
@@ -170,7 +171,10 @@ class CourseCard(CardWidget):
         self.mangerLayout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
     def editCourse(self):
-        editWindow = ReactionWindow(courseId=self.metadata.id)
+        if self.isStandard:
+            editWindow = StandardWindow(course_id=self.metadata.id)
+        else:
+            editWindow = ReactionWindow(courseId=self.metadata.id)
         editWindow.show()
 
 
@@ -261,8 +265,9 @@ class CourseManagerInterface(ScrollArea):
     def addCourse(self):
         current = self.cardView.stackedContainer.currentIndex()
         if current == 0:
-            addWindow = ReactionWindow(parent=self.cardView.reactionCardView)
-            addWindow.show()
+            self.addWindow = ReactionWindow(parent=self.cardView.reactionCardView)
+
         elif current == 1:
-            addWindow = StandardWindow(parent=self.cardView.standardCardView)
-            addWindow.show()
+            self.addWindow = StandardWindow(parent=self.cardView.standardCardView)
+        self.addWindow.show()
+

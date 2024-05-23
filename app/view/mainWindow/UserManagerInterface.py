@@ -8,9 +8,12 @@ from PyQt5.QtGui import QIntValidator
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QSizePolicy,
                              QSpacerItem, QAbstractItemView, QTableWidgetItem,
                              )
+from httpx import HTTPStatusError
 from qfluentwidgets import FluentIcon as FIF
 from qfluentwidgets import (ScrollArea, BodyLabel, LineEdit,
                             SwitchButton, TableWidget, ComboBox, Dialog, PrimaryToolButton, )
+
+from app.net.admin import HttpClientUtils, adminConfig
 
 
 class UserManagerInterface(ScrollArea):
@@ -22,13 +25,11 @@ class UserManagerInterface(ScrollArea):
         self.__initWidget()
 
         self.initFun()
-        self.initConfig()
 
         self.currentPage = 1
         self.totalPage = 1
         self.pageSize = 10
         self.totalNum = 1
-        self.Page()
         self.Page()
         # StyleSheet.VIEW_INTERFACE.apply(self)
 
@@ -121,36 +122,27 @@ class UserManagerInterface(ScrollArea):
         self.nextBtn.clicked.connect(self.nextPage)
         self.pageLineEdit.returnPressed.connect(self.changePage)
 
-    def initConfig(self):
-        # TODO 配置改造
-        config = yaml.load(open('./app/config/ServerConfig.yaml', 'r'),
-                           Loader=yaml.FullLoader)
-        self.host = config["server"]["host"]
-        self.port = config["server"]["port"]
-        config = yaml.load(open('./app/config/ClientConfig.yaml', 'r'),
-                           Loader=yaml.FullLoader)
-        self.token = config["user"]["token"]
-
     def Page(self):
         name = self.usernameLineEdit.text()
-        url = "http://{}:{}/admin/usr/page".format(self.host, self.port)
-        payload = {
+        url = f"http://{adminConfig.host}:{adminConfig.port}/admin/usr/page"
+        params = {
             "page": self.currentPage,
             "pageSize": self.pageSize
         }
         if name != "":
-            payload["ame"] = name
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "token": self.token}
+            params["ame"] = name
         try:
-            response = requests.get(url, json=payload, headers=headers)
-        except:
-            self.showDialog(self.tr("Server Error"))
+            response = HttpClientUtils.doGetWithToken(url, params=params)
+            response = json.loads(response.text)
+        except Exception as e:
+            if isinstance(e, HTTPStatusError):
+                # TODO 跳转回登录界面
+                if e.response.status_code == 401:
+                    self.showDialog(self.tr("Login timeout"))
+            else:
+                self.showDialog(self.tr("Server error"))
             return
-        response = json.loads(response.text)
-        # self.tableWidget.clear()
+
         self.tableWidget.setRowCount(0)
         if response["code"] == 1:
             self.totalNum = response["data"]["total"]
@@ -185,11 +177,11 @@ class UserManagerInterface(ScrollArea):
                 item = QTableWidgetItem(records[i]["updateTime"])
                 item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
                 self.tableWidget.setItem(i, 6, item)
-            for row in range(self.tableWidget.rowCount()):
-                self.tableWidget.setRowHeight(row, 50)
-            # self.tableWidget.resizeRowsToContents()
+                self.tableWidget.setRowHeight(i, 50)
+
         else:
             self.showDialog(response["msg"])
+
 
     def searchData(self):
         self.Page()
@@ -203,19 +195,20 @@ class UserManagerInterface(ScrollArea):
                 row = index.row()
                 userId = self.records[row]["id"]
                 status = 1 if button.isChecked() else 0
-                url = "http://{}:{}/admin/usr/status/{}?id={}".format(self.host,
-                                                                      self.port,
-                                                                      status,
-                                                                      userId)
-                header = {
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                    "token": self.token}
-                # try:
-                requests.post(url, headers=header)
-                # except:
-                #     self.showDialog(self.tr("Server Error"))
-                #     return
+                url = (f"http://{adminConfig.host}:{adminConfig.port}"
+                       f"/admin/usr/status/{status}?id={userId}")
+                try:
+                    HttpClientUtils.doPostWithToken(url)
+                except Exception as e:
+                    print(e)
+                    if isinstance(e, HTTPStatusError):
+                        # TODO 跳转回登录界面
+                        if e.response.status_code == 401:
+                            self.showDialog(self.tr("Login timeout"))
+                        else:
+                            self.showDialog(self.tr("Server error"))
+                        return
+
 
     def changePageSize(self):
         oldPageSize = self.pageSize

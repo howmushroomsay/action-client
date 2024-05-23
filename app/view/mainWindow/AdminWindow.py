@@ -1,6 +1,12 @@
-import os
 import sys
+import os
+current_path = os.path.dirname(os.path.abspath(__file__))
 
+# 添加上上级目录到sys.path
+parent_path = os.path.abspath(os.path.join(current_path, '..'))
+grandparent_path = os.path.abspath(os.path.join(parent_path, '..'))
+sys.path.append(grandparent_path)
+sys.path.append(os.path.abspath('.'))
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt, QSize, QTranslator
@@ -66,35 +72,3 @@ class AdminWindow(FluentWindow):
         toggleTheme()
 
 
-if __name__ == '__main__':
-    # enable dpi scale
-    # enable dpi scale
-    if cfg.get(cfg.dpiScale) == "Auto":
-        QApplication.setHighDpiScaleFactorRoundingPolicy(
-            Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
-    else:
-        os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "0"
-        os.environ["QT_SCALE_FACTOR"] = str(cfg.get(cfg.dpiScale))
-
-    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
-
-    # create application
-    app = QApplication(sys.argv)
-    app.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
-
-    # internationalization
-    locale = cfg.get(cfg.language).value
-    translator = FluentTranslator(locale)
-    galleryTranslator = QTranslator()
-    galleryTranslator.load(r'D:\project\python\action-client\app\resource\i18n\gallery.zh_CN.qm')
-    # galleryTranslator.load(locale, "gallery", ".", ":/gallery/i18n")
-
-    app.installTranslator(translator)
-    app.installTranslator(galleryTranslator)
-
-    # create main window
-    window = AdminWindow()
-    window.show()
-
-    app.exec_()

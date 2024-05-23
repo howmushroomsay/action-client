@@ -1,15 +1,19 @@
+import base64
 import json
 import sys
+import time
 
-import httpx
+import cv2
+import requests
 import numpy as np
-from PyQt5.QtCore import Qt, QUrl, QTimer, QLocale
+from PyQt5.QtCore import Qt, QUrl, QTimer, QLocale, QThread, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtWidgets import (QApplication, QVBoxLayout, QHBoxLayout, QTableWidgetItem,
                              QFileDialog, QSizePolicy, QWidget, QGraphicsScene, QGraphicsView,
                              QGraphicsEllipseItem, QGraphicsItem)
+from httpx import HTTPStatusError
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from qfluentwidgets import (BodyLabel, PushButton, Slider, TableWidget,
@@ -19,7 +23,7 @@ from qfluentwidgets import (ScrollArea, FluentTranslator,
                             LineEdit, TextEdit,
                             PrimaryPushButton, Dialog, PrimaryToolButton)
 
-from app.net.admin import adminConfig
+from app.net.admin import adminConfig, HttpClientUtils
 
 
 class SkeletonWidget(QWidget):
@@ -38,10 +42,6 @@ class SkeletonWidget(QWidget):
                      [12, 24, 26, 28, 32, 30, 28],
                      [11, 23, 25, 27, 31, 29, 27],
                      [24, 23]]
-
-        self.__initFig()
-
-    def __initFig(self):
         self.fig = Figure()
         self.canvas = FigureCanvas(self.fig)
         self.layout().addWidget(self.canvas)
@@ -81,7 +81,7 @@ class SkeletonItem(QGraphicsEllipseItem):
             self.setBrush(Qt.white)
         else:
             self.setBrush(Qt.red)
-        self.parent_.importantSkeleton[self.id] = self.brush == Qt.red
+        self.parent_.importantSkeleton[self.id] = int(self.brush() == Qt.red)
         return super().mousePressEvent(event)
 
 
@@ -99,7 +99,8 @@ class SkeletonScene(QGraphicsScene):
         conn = [[0, 1, 2, 9, 10],
                 [8, 6, 4, 2, 3, 5, 7],
                 [16, 14, 12, 10, 11, 13, 15]]
-        self.importantSkeleton = [False] * len(joints)
+        self.importantSkeleton = [0] * len(joints)
+        self.points = []
         for c in conn:
             for i in range(len(c) - 1):
                 x1, y1 = joints[c[i]]
@@ -109,6 +110,22 @@ class SkeletonScene(QGraphicsScene):
         for i in range(len(joints)):
             joint = SkeletonItem(joints[i], skeleton_id=i, parent=self)
             self.addItem(joint)
+            self.points.append(joint)
+
+    def initPoints(self):
+        for i in range(len(self.importantSkeleton)):
+            if self.importantSkeleton[i] == 1:
+                self.points[i].setBrush(Qt.red)
+
+
+def getVideoDuration(path):
+    cap = cv2.VideoCapture(path)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    frameCount = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    duration = frameCount / fps
+    durationMs = duration * 1000
+    cap.release()
+    return durationMs
 
 
 class StandardWindow(ScrollArea):
@@ -117,12 +134,11 @@ class StandardWindow(ScrollArea):
 
         self.parent_ = parent
         self.courseId = course_id
-
         self.changeSkeleton = False
         self.skeleton = None
         self.videoPath = None
         self.iconPath = None
-        self.needSkeleton = False
+        self.needSkeleton = True
 
         self.keyFrame = []
         self.info = []
@@ -137,7 +153,7 @@ class StandardWindow(ScrollArea):
         self.player = QMediaPlayer(None, QMediaPlayer.VideoSurface)
         self.keyFrameTable = TableWidget()
         self.skeletonLayout = QVBoxLayout()
-        self.skeletonWidget = SkeletonWidget()
+        self.skeletonWidget = SkeletonWidget(self)
         self.keyFrameDesTextEdit = TextEdit()
         self.addBtn = PrimaryPushButton(self.tr("Add KeyFrame"), self, FIF.ADD)
 
@@ -163,7 +179,6 @@ class StandardWindow(ScrollArea):
 
         self.__initWidget()
         self.__initLayout()
-
         self.__connectSignalToSlot()
 
         self.sliderDragging = False
@@ -190,8 +205,9 @@ class StandardWindow(ScrollArea):
         self.submitBtn.setMaximumWidth(200)
 
         self.skeletonWidget.setMaximumWidth(300)
+        self.skeletonWidget.setMinimumWidth(200)
         self.keyFrameDesTextEdit.setMaximumSize(300, 50)
-        self.keyFrameTable.setMaximumWidth(400)
+        self.keyFrameTable.setFixedWidth(300)
 
     def __initLayout(self):
         self.setGeometry(100, 100, 1000, 600)
@@ -252,8 +268,7 @@ class StandardWindow(ScrollArea):
         if current_frame not in self.keyFrame:
             self.keyFrame.append(current_frame)
             info = [self.formatTime(current_time // 1000) + ":{}".format(current_time % 1000),
-                    self.keyFrameDesTextEdit.toPlainText(),
-                    self.skeleton[current_frame]]
+                    self.keyFrameDesTextEdit.toPlainText()]
             self.info.append(info)
             self.keyFrame.sort()
             self.info.sort()
@@ -272,7 +287,8 @@ class StandardWindow(ScrollArea):
             if flag:
                 self.videoPath = fileName
                 self.needSkeleton = True
-                self.skeletonWidget.ax.cla()
+
+                # self.skeletonWidget.ax.cla()
 
     def pauseVideo(self):
         if self.player.state() == QMediaPlayer.PlayingState:
@@ -297,8 +313,11 @@ class StandardWindow(ScrollArea):
                 f"""{self.formatTime(current // 1000)} / {self.formatTime(duration // 1000)}""")
 
         if not self.needSkeleton:
-            currentFrame = int(current / duration * self.skeleton.shape[0]) - 1
-            self.skeletonWidget.drawSkeleton(self.skeleton[currentFrame])
+            try:
+                currentFrame = int(current / duration * self.skeleton.shape[0]) - 1
+                self.skeletonWidget.drawSkeleton(self.skeleton[currentFrame])
+            except:
+                pass
 
     @staticmethod
     def formatTime(seconds):
@@ -328,15 +347,16 @@ class StandardWindow(ScrollArea):
             self.showDialog(self.tr("You have already generated the skeleton"))
             return
         # TODO
-        url = "http://192.168.3.137:8080/pose/video"
+        url = "http://172.16.0.233:8080/pose/video"
         files = {"file": open(self.videoPath, "rb")}
-        response = httpx.post(url, files=files, timeout=None)
+        response = requests.post(url, files=files, timeout=None)
         skeleton = np.array(response.text.strip().split(" "), dtype=float)
         self.skeleton = skeleton.reshape((-1, 33, 4))
         self.needSkeleton = False
         self.changeSkeleton = True
 
     def submit(self):
+        tempPath = "app/temp/skeleton.txt"
         courseName = self.courseNameLineEdit.text().strip()
         # 校验必填项
         if courseName == "":
@@ -346,89 +366,67 @@ class StandardWindow(ScrollArea):
             self.showDialog(self.tr("You have to generate the skeleton firstly!"))
             return
         url = f"http://{adminConfig.host}:{adminConfig.port}/admin/common/upload"
+
         data = {
             "id": self.courseId,
             "courseName": courseName,
             "courseDes": self.courseDesTextEdit.toPlainText(),
-            "status": 1,
         }
-        # 上传课程封面
-        if self.iconPath is not None:
-            headers = {"type": "thumbnail"}
-            try:
-                files = [('file', (self.iconPath, open(self.iconPath, 'rb'), 'image/png'))]
-                response = httpx.post(url, files=files, headers=headers)
-                data["iconPath"] = json.loads(response.text)["data"]
-            except Exception as e:
-                print(e)
-                self.showDialog(self.tr("Upload Image failed"))
-                return
-        else:
-            if self.courseId is None:
-                self.showDialog(self.tr("Please upload course icon"))
-                return
-
-        # 上传视频
-        if self.videoPath is not None:
-            headers = {"type": "video"}
-            try:
-                files = [('file', (self.videoPath, open(self.videoPath, 'rb'), 'application/octet-stream'))]
-                response = httpx.post(url, files=files, headers=headers)
-                data["videoPath"] = json.loads(response.text)["data"]
-            except Exception as e:
-                print(e)
-                self.showDialog(self.tr("Upload Video failed"))
-                return
-        else:
-            if self.courseId is None:
-                self.showDialog(self.tr("Please upload course video"))
-                return
-
-        # 上传骨架文件
-        skeletonPath = None
         if self.changeSkeleton:
-            headers = {"type": "skeleton"}
-            tempPath = "app/temp/skeleton.txt"
             with open(tempPath, "w") as f:
                 for i in range(self.skeleton.shape[0]):
-                    for j in range(33):
-                        f.write(str(self.skeleton[i, j, 0]) + " ")
-                        f.write(str(self.skeleton[i, j, 1]) + " ")
-                        f.write(str(self.skeleton[i, j, 2]) + " ")
-                        f.write(str(self.skeleton[i, j, 3]) + " ")
-                    f.write("\n")
+                    line = " ".join(map(str, self.skeleton[i].flatten()))
+                    f.write(line + "\n")
+        # 上传课程封面
+        if self.iconPath is not None and self.videoPath is not None:
             try:
-                files = [('file', (tempPath, open(tempPath, 'rb'), 'application/octet-stream'))]
-                response = httpx.post(url, files=files, headers=headers)
-                data["skeletonPath"] = json.loads(response.text)["data"]
+                headers = {"type": "thumbnail"}
+                files = [('file', (self.iconPath, open(self.iconPath, 'rb'), 'image/png'))]
+                response = HttpClientUtils.doPostWithToken(url, files=files, headers=headers)
+                data["icon"] = json.loads(response.text)["data"]
+
+                headers = {"type": "video"}
+                files = [('file', (self.videoPath, open(self.videoPath, 'rb'), 'application/octet-stream'))]
+                response = HttpClientUtils.doPostWithToken(url, files=files, headers=headers)
+                data["videoPath"] = json.loads(response.text)["data"]
+
+                if self.changeSkeleton:
+                    headers = {"type": "skeleton"}
+                    files = [('file', (tempPath, open(tempPath, 'rb'), 'application/octet-stream'))]
+                    response = HttpClientUtils.doPostWithToken(url, files=files, headers=headers)
+                    data["skeletonPath"] = json.loads(response.text)["data"]
+
             except Exception as e:
                 print(e)
-                self.showDialog(self.tr("Upload Video failed"))
+                self.showDialog(self.tr("Upload failed"))
                 return
-        # 上传课程信息
+        else:
+            if self.courseId is None:
+                self.showDialog(self.tr("Please upload icon/video first!"))
+                return
+        self.uploadInfo(data)
+
+    def uploadInfo(self, data):
         url = f"http://{adminConfig.host}:{adminConfig.port}/admin/course/standard"
         keyFrame = []
         for i in range(len(self.info)):
             keyFrame.append({
                 "time": self.keyFrame[i],
                 "keyFrameDes": self.info[i][1],
-                "skeleton": self.info[i][2].tolist(),
             })
         data["keyFrameList"] = keyFrame
         pointImportant = 0
-        for i, val in enumerate(reversed(self.skeletonView.scene().importantSkeleton)):
-            if val:
-                pointImportant |= 1 << i
+        for i, val in enumerate(self.skeletonView.scene().importantSkeleton):
+            pointImportant |= 1 << i
         data["pointImportant"] = pointImportant
         try:
             if self.courseId is not None:
-                response = httpx.put(url, json=data)
+                response = HttpClientUtils.doPutWithToken(url, data=data)
             else:
-                response = httpx.post(url, json=data)
+                response = HttpClientUtils.doPostWithToken(url, data=data)
             statusCode = json.loads(response.text)["code"]
             if statusCode != 1:
                 self.showDialog(self.tr(json.loads(response.text)["msg"]))
-                return
         except Exception as e:
             print(e)
             self.showDialog(self.tr("Upload Info failed"))
@@ -444,7 +442,7 @@ class StandardWindow(ScrollArea):
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
             self.keyFrameTable.setItem(i, 0, item)
             item = QTableWidgetItem(str(self.info[i][1]))
-            item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+            # item.setFlags(item.flags() & ~Qt.ItemIsEditable)
             self.keyFrameTable.setItem(i, 1, item)
             self.keyFrameTable.setCellWidget(i, 2, button)
 
@@ -461,7 +459,7 @@ class StandardWindow(ScrollArea):
     def loadData(self):
         url = f"http://{adminConfig.host}:{adminConfig.port}/admin/course/standard/{self.courseId}"
         try:
-            response = httpx.get(url)
+            response = HttpClientUtils.doGetWithToken(url)
             response = json.loads(response.text)
             if response["code"] == 0:
                 self.showDialog(response["msg"])
@@ -469,18 +467,62 @@ class StandardWindow(ScrollArea):
             data = response["data"]
         except Exception as e:
             print(e)
-            self.showDialog(self.tr("Server Error"))
+            if isinstance(e, HTTPStatusError):
+                # TODO 跳转回登录界面
+                # TODO 更详尽的错误处理
+                if e.response.status_code == 401:
+                    self.showDialog(self.tr("Login timeout"))
+            else:
+                self.showDialog(self.tr("Server error"))
             self.close()
             return
 
         self.courseNameLineEdit.setText(data["courseName"])
         self.courseDesTextEdit.setText(data["courseDes"])
-        # 表格数据处理
+        importantSkeleton = data["pointImportant"]
+        for i in range(len(self.skeletonView.scene().importantSkeleton)):
+            self.skeletonView.scene().importantSkeleton[i] = (importantSkeleton >> i) & 1
+        self.skeletonView.scene().initPoints()
+        # 下载视频、课程图标、骨架文件
+        url = f"http://{adminConfig.host}:{adminConfig.port}/admin/common/download"
+        try:
+            videoPath = data["videoPath"]
+            response = HttpClientUtils.doGetWithToken(url + f"/{videoPath}", headers={"type": "video"})
+            with open("app/temp/course.mp4", "wb") as f:
+                f.write(response.content)
+            iconPath = data["icon"]
+            response = HttpClientUtils.doGetWithToken(url + f"/{iconPath}", headers={"type": "thumbnail"})
+            pixmap = QPixmap()
+            pixmap.loadFromData(response.content)
+            pixmap = pixmap.scaled(self.courseIconLabel.size(), Qt.KeepAspectRatio,
+                                   Qt.SmoothTransformation)
+            self.courseIconLabel.setPixmap(pixmap)
+            skeletonPath = data["skeletonPath"]
+            response = HttpClientUtils.doGetWithToken(url + f"/{skeletonPath}", headers={"type": "skeleton"})
+            skeleton = np.array(response.text.strip().split(" "), dtype=float)
+            self.skeleton = skeleton.reshape((-1, 33, 4))
+
+        except Exception as e:
+            print(e)
+            self.showDialog(self.tr("Server Error"))
+            return
+
+        keyFrames = data["keyFrames"]
+        for keyFrame in keyFrames:
+            frame = int(keyFrame["time"])
+            self.keyFrame.append(frame)
+            t = int(frame / self.skeleton.shape[0] * getVideoDuration("app/temp/course.mp4"))
+            self.info.append([self.formatTime(t // 1000) + ":{}".format(t % 1000),
+                              keyFrame["keyFrameDes"]])
+        self.showTable()
+        self.openVideo(fileName="app/temp/course.mp4", flag=False)
+
+        self.needSkeleton = False
 
     def showDialog(self, msg):
-        w = Dialog(self.tr("ERROR"), msg, self)
-        w.setTitleBarVisible(False)
-        w.exec()
+        dialog = Dialog(self.tr("ERROR"), msg, self)
+        dialog.setTitleBarVisible(False)
+        dialog.exec()
 
     def closeEvent(self, event):
         if self.parent_ is not None:
@@ -501,6 +543,6 @@ if __name__ == '__main__':
     translator = FluentTranslator(QLocale())
     app.installTranslator(translator)
 
-    w = StandardWindow()
+    w = StandardWindow(course_id=3)
     w.show()
     app.exec_()

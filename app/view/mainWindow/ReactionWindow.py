@@ -1,7 +1,6 @@
 import json
 import sys
 
-import requests
 import yaml
 from PyQt5.QtCore import Qt, QUrl, QTimer, QLocale, QTime
 from PyQt5.QtGui import QPixmap
@@ -15,6 +14,8 @@ from qfluentwidgets import FluentIcon as FIF
 from qfluentwidgets import (ScrollArea, FluentTranslator,
                             LineEdit, TimeEdit, ComboBox, TextEdit,
                             PrimaryPushButton, Dialog)
+
+from app.net.admin import HttpClientUtils, adminConfig
 
 
 class ReactionWindow(ScrollArea):
@@ -70,7 +71,6 @@ class ReactionWindow(ScrollArea):
         self.__initWidget()
         self.__initLayout()
         self.__connectSignalToSlot()
-        self.initConfig()
         if self.courseId is not None:
             self.loadData()
 
@@ -99,19 +99,14 @@ class ReactionWindow(ScrollArea):
         # self.courseNameLineEdit.setMaximumWidth(200)
         self.desTextEdit.setMaximumHeight(100)
 
-    def initConfig(self):
-        config = yaml.load(open('./app/config/ServerConfig.yaml', 'r'),
-                           Loader=yaml.FullLoader)
-        self.host = config["server"]["host"]
-        self.port = config["server"]["port"]
 
     def loadData(self):
 
         # TODO 整合所有的请求，封装到一个类中
         # 获取课程信息
-        url = "http://{}:{}/admin/course/reaction/{}".format(self.host, self.port, self.courseId)
+        url = f"http://{adminConfig.host}:{adminConfig.port}/admin/course/reaction/{self.courseId}"
         try:
-            response = requests.get(url)
+            response = HttpClientUtils.doGetWithToken(url)
             response = json.loads(response.text)
             if response["code"] == 0:
                 self.showDialog(response["msg"])
@@ -132,9 +127,9 @@ class ReactionWindow(ScrollArea):
                               point["action"],
                               point["pointDes"]])
         # 获取课程图标
-        url = f"http://{self.host}:{self.port}/admin/common/download/{data['icon']}"
+        url = f"http://{adminConfig.host}:{adminConfig.port}/admin/common/download/{data['icon']}"
         try:
-            response = requests.get(url, headers={"type": "thumbnail"})
+            response = HttpClientUtils.doGetWithToken(url, headers={"type": "thumbnail"})
             pixmap = QPixmap()
             pixmap.loadFromData(response.content)
             pixmap = pixmap.scaled(self.courseIconLabel.size(),
@@ -145,10 +140,10 @@ class ReactionWindow(ScrollArea):
             self.showDialog(self.tr("Server Error"))
             return
         # 获取课程视频
-        url = "http://{}:{}/admin/common/download/{}".format(self.host, self.port, data["videoPath"])
+        url = f"http://{adminConfig.host}:{adminConfig.port}/admin/common/download/{data['videoPath']}"
         # TODO 使用配置指定文件路径
         try:
-            response = requests.get(url, headers={"type": "video"})
+            response = HttpClientUtils.doGetWithToken(url, headers={"type": "video"})
             with open("app/temp/course.mp4", 'wb') as f:
                 f.write(response.content)
             self.openVideo(fileName="app/temp/course.mp4", flag=False)
@@ -333,14 +328,14 @@ class ReactionWindow(ScrollArea):
         if len(self.info) == 0:
             self.showDialog(self.tr("Please add at least one point"))
             return
-        url = "http://{}:{}/admin/common/upload".format(self.host, self.port)
+        url = f"http://{adminConfig.host}:{adminConfig.port}/admin/common/upload"
         # 上传课程封面
         if self.iconPath is not None:
 
             headers = {"type": "thumbnail"}
             files = [('file', (self.iconPath, open(self.iconPath, 'rb'), 'image/png'))]
             try:
-                response = requests.post(url, files=files, headers=headers)
+                response = HttpClientUtils.doPostWithToken(url, files=files, headers=headers)
                 self.iconPath = json.loads(response.text)["data"]
             except:
                 self.showDialog(self.tr("Upload Image failed"))
@@ -355,7 +350,7 @@ class ReactionWindow(ScrollArea):
             headers = {"type": "video"}
             files = [('file', (self.videoPath, open(self.videoPath, 'rb'), 'application/octet-stream'))]
             try:
-                response = requests.post(url, files=files, headers=headers)
+                response = HttpClientUtils.doPostWithToken(url, files=files, headers=headers)
                 self.videoPath = json.loads(response.text)["data"]
             except:
                 self.showDialog(self.tr("Upload Video failed"))
@@ -366,7 +361,7 @@ class ReactionWindow(ScrollArea):
                 return
                 # 上传课程信息
 
-        url = "http://{}:{}/admin/course/reaction".format(self.host, self.port)
+        url = f"http://{adminConfig.host}:{adminConfig.port}/admin/course/reaction"
         point = []
         for i in range(len(self.info)):
             point.append({
@@ -388,9 +383,9 @@ class ReactionWindow(ScrollArea):
             data["icon"] = self.iconPath
         try:
             if self.courseId is not None:
-                response = requests.put(url, json=data)
+                response = HttpClientUtils.doPutWithToken(url, data=data)
             else:
-                response = requests.post(url, json=data)
+                response = HttpClientUtils.doPostWithToken(url, data=data)
             statusCode = json.loads(response.text)["code"]
             if statusCode != 1:
                 self.showDialog(self.tr(json.loads(response.text)["msg"]))

@@ -1,5 +1,6 @@
-import sys
 import os
+import sys
+
 current_path = os.path.dirname(os.path.abspath(__file__))
 
 # 添加上上级目录到sys.path
@@ -9,13 +10,10 @@ sys.path.append(grandparent_path)
 sys.path.append(os.path.abspath('.'))
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt, QSize, QTranslator
+from PyQt5.QtCore import QSize
 
-from qfluentwidgets import (SplashScreen, toggleTheme, FluentWindow,
-                            FluentTranslator)
+from qfluentwidgets import (SplashScreen, toggleTheme, FluentWindow)
 from qfluentwidgets import FluentIcon as FIF
-
-from app.common.config import cfg
 
 from .HomeInterface import HomeInterface
 from .UserManagerInterface import UserManagerInterface
@@ -70,5 +68,3 @@ class AdminWindow(FluentWindow):
 
     def toggleTheme(self):
         toggleTheme()
-
-
